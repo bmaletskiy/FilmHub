@@ -1,10 +1,10 @@
 @model IEnumerable<FilmHub.Models.Movie>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Movies";
 }
 
-<h1>Index</h1>
+<h1>Movies</h1>
 
 <p>
     <a asp-action="Create">Create New</a>
@@ -48,9 +48,12 @@
             <td>
                 @Html.DisplayFor(model => item.ReleaseYear)
             </td>
-            <td>
-                @Html.DisplayFor(model => item.PosterUrl)
-            </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(item.PosterUrl))
+                    {
+                        <img src="@item.PosterUrl" style="max-width: 80px;" />
+                    }
+                </td>
             <td>
                 @Html.DisplayFor(model => item.GenreId)
             </td>

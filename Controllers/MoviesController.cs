@@ -1,6 +1,6 @@
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using FilmHub.Models;
 using FilmHub.Data;
 
@@ -14,7 +14,7 @@ public class MoviesController : Controller
     }
 
     // GET: MOVIES
-    public async Task<IActionResult> Index()    
+    public async Task<IActionResult> Index()
     {
         return View(await _context.Movies.ToListAsync());
     }
@@ -40,6 +40,7 @@ public class MoviesController : Controller
     // GET: MOVIES/Create
     public IActionResult Create()
     {
+        ViewData["GenreId"] = new SelectList(_context.Genres, "Id", "Name");
         return View();
     }
 
@@ -48,17 +49,29 @@ public class MoviesController : Controller
     // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Id,Title,Description,ReleaseYear,PosterUrl,GenreId,Genre,Reviews")] Movie movie)
+    public async Task<IActionResult> Create([Bind("Id,Title,Description,ReleaseYear,GenreId")] Movie movie, IFormFile? posterFile)
     {
         if (ModelState.IsValid)
         {
+            if (posterFile != null && posterFile.Length > 0)
+            {
+                var fileName = Guid.NewGuid() + Path.GetExtension(posterFile.FileName);
+                var filePath = Path.Combine("wwwroot/images", fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await posterFile.CopyToAsync(stream);
+                }
+                movie.PosterUrl = "/images/" + fileName;
+            }
             _context.Add(movie);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
+        ViewData["GenreId"] = new SelectList(_context.Genres, "Id", "Name", movie.GenreId);
         return View(movie);
     }
 
+    // GET: MOVIES/Edit/5
     // GET: MOVIES/Edit/5
     public async Task<IActionResult> Edit(int? id)
     {
@@ -72,15 +85,14 @@ public class MoviesController : Controller
         {
             return NotFound();
         }
+        ViewData["GenreId"] = new SelectList(_context.Genres, "Id", "Name", movie.GenreId);
         return View(movie);
     }
 
     // POST: MOVIES/Edit/5
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? id, [Bind("Id,Title,Description,ReleaseYear,PosterUrl,GenreId,Genre,Reviews")] Movie movie)
+    public async Task<IActionResult> Edit(int? id, [Bind("Id,Title,Description,ReleaseYear,GenreId")] Movie movie, IFormFile? posterFile)
     {
         if (id != movie.Id)
         {
@@ -91,6 +103,27 @@ public class MoviesController : Controller
         {
             try
             {
+                var existingMovie = await _context.Movies.AsNoTracking().FirstOrDefaultAsync(m => m.Id == id);
+                if (existingMovie == null)
+                {
+                    return NotFound();
+                }
+
+                if (posterFile != null && posterFile.Length > 0)
+                {
+                    var fileName = Guid.NewGuid() + Path.GetExtension(posterFile.FileName);
+                    var filePath = Path.Combine("wwwroot/images", fileName);
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await posterFile.CopyToAsync(stream);
+                    }
+                    movie.PosterUrl = "/images/" + fileName;
+                }
+                else
+                {
+                    movie.PosterUrl = existingMovie.PosterUrl;
+                }
+
                 _context.Update(movie);
                 await _context.SaveChangesAsync();
             }
@@ -107,6 +140,7 @@ public class MoviesController : Controller
             }
             return RedirectToAction(nameof(Index));
         }
+        ViewData["GenreId"] = new SelectList(_context.Genres, "Id", "Name", movie.GenreId);
         return View(movie);
     }
 

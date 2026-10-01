@@ -1,10 +1,10 @@
 @model FilmHub.Models.Movie
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Movie Details";
 }
 
-<h1>Details</h1>
+<h1>Movie Details</h1>
 
 <div>
     <h4>Movie</h4>
@@ -35,7 +35,10 @@
             @Html.DisplayNameFor(model => model.PosterUrl)
         </dt>
         <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.PosterUrl)
+        @if (!string.IsNullOrEmpty(Model.PosterUrl))
+        {
+            <img src="@Model.PosterUrl" style="max-width: 250px;" />
+        }
         </dd>
     </dl>
         <dt class = "col-sm-2">
