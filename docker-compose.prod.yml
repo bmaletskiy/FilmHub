@@ -1,0 +1,31 @@
+services:
+  app:
+    image: ghcr.io/bmaletskiy/filmhub:latest
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=FilmHubDb;Username=postgres;Password=${DB_PASSWORD:?DB_PASSWORD is required}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD is required}"
+      POSTGRES_DB: FilmHubDb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d FilmHubDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
