@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
 using FilmHub.Models;
 
 namespace FilmHub.Data;
@@ -10,4 +11,14 @@ public class AppDbContext : DbContext
     public DbSet<Movie> Movies { get; set; }
     public DbSet<Genre> Genres { get; set; }
     public DbSet<Review> Reviews { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Movie>()
+            .HasMany(m => m.Genres)
+            .WithMany(g => g.Movies)
+            .UsingEntity(j => j.ToTable("MovieGenres"));
+    }
 }

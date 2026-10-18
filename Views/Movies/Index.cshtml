@@ -4,71 +4,93 @@
     ViewData["Title"] = "Movies";
 }
 
-<h1>Movies</h1>
+<h1 class="mb-4">Movies</h1>
 
 <p>
-    <a asp-action="Create">Create New</a>
+    <a asp-action="Create" class="btn btn-primary">
+        Add Movie
+    </a>
 </p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Title)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Description)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ReleaseYear)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.PosterUrl)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.GenreId)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Genre)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Reviews)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(model => item.Title)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Description)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.ReleaseYear)
-            </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(item.PosterUrl))
-                    {
-                        <img src="@item.PosterUrl" style="max-width: 80px;" />
-                    }
-                </td>
-            <td>
-                @Html.DisplayFor(model => item.GenreId)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Genre)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Reviews)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Poster</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Year</th>
+                <th>Genres</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        @if (!string.IsNullOrEmpty(item.PosterUrl))
+                        {
+                            <img src="@item.PosterUrl"
+                                 alt="@item.Title poster"
+                                 style="width: 70px; height: 105px; object-fit: cover;"
+                                 class="rounded" />
+                        }
+                        else
+                        {
+                            <span class="text-muted">No poster</span>
+                        }
+                    </td>
+
+                    <td class="fw-semibold">
+                        @item.Title
+                    </td>
+
+                    <td style="max-width: 300px;">
+                        <div class="text-truncate"
+                             style="max-width: 300px;"
+                             title="@item.Description">
+                            @item.Description
+                        </div>
+                    </td>
+
+                    <td>
+                        @item.ReleaseYear
+                    </td>
+
+                    <td>
+                        @foreach (var genre in item.Genres.OrderBy(g => g.Name))
+                        {
+                            <span class="badge bg-secondary me-1 mb-1">
+                                @genre.Name
+                            </span>
+                        }
+                    </td>
+
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a asp-action="Details"
+                               asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-primary">
+                                Details
+                            </a>
+
+                            <a asp-action="Edit"
+                               asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-secondary">
+                                Edit
+                            </a>
+
+                            <a asp-action="Delete"
+                               asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-danger">
+                                Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

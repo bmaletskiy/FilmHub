@@ -50,9 +50,6 @@ namespace FilmHub.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("GenreId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("PosterUrl")
                         .HasColumnType("text");
 
@@ -64,8 +61,6 @@ namespace FilmHub.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("GenreId");
 
                     b.ToTable("Movies");
                 });
@@ -99,15 +94,19 @@ namespace FilmHub.Migrations
                     b.ToTable("Reviews");
                 });
 
-            modelBuilder.Entity("FilmHub.Models.Movie", b =>
+            modelBuilder.Entity("GenreMovie", b =>
                 {
-                    b.HasOne("FilmHub.Models.Genre", "Genre")
-                        .WithMany("Movies")
-                        .HasForeignKey("GenreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Property<int>("GenresId")
+                        .HasColumnType("integer");
 
-                    b.Navigation("Genre");
+                    b.Property<int>("MoviesId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("GenresId", "MoviesId");
+
+                    b.HasIndex("MoviesId");
+
+                    b.ToTable("MovieGenres", (string)null);
                 });
 
             modelBuilder.Entity("FilmHub.Models.Review", b =>
@@ -121,9 +120,19 @@ namespace FilmHub.Migrations
                     b.Navigation("Movie");
                 });
 
-            modelBuilder.Entity("FilmHub.Models.Genre", b =>
+            modelBuilder.Entity("GenreMovie", b =>
                 {
-                    b.Navigation("Movies");
+                    b.HasOne("FilmHub.Models.Genre", null)
+                        .WithMany()
+                        .HasForeignKey("GenresId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FilmHub.Models.Movie", null)
+                        .WithMany()
+                        .HasForeignKey("MoviesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FilmHub.Models.Movie", b =>

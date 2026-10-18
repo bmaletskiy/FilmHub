@@ -1,69 +1,157 @@
 @model FilmHub.Models.Movie
 
 @{
-    ViewData["Title"] = "Movie Details";
+    ViewData["Title"] = Model.Title + " - FilmHub";
 }
 
-<h1>Movie Details</h1>
+<div class="container py-4">
 
-<div>
-    <h4>Movie</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Title)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Title)
-        </dd>
-    </dl>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Description)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Description)
-        </dd>
-    </dl>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.ReleaseYear)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.ReleaseYear)
-        </dd>
-    </dl>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.PosterUrl)
-        </dt>
-        <dd class = "col-sm-10">
-        @if (!string.IsNullOrEmpty(Model.PosterUrl))
+    <a asp-action="Index"
+       class="btn btn-outline-secondary mb-4">
+        ← Back to Movies
+    </a>
+
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="row g-0">
+
+            <!-- Poster -->
+            <div class="col-md-4">
+                @if (!string.IsNullOrEmpty(Model.PosterUrl))
+                {
+                    <img src="@Model.PosterUrl"
+                         alt="@Model.Title poster"
+                         class="img-fluid rounded-start w-100"
+                         style="max-height: 550px; object-fit: cover;" />
+                }
+                else
+                {
+                    <div class="bg-secondary text-white d-flex
+                        align-items-center justify-content-center h-100"
+                         style="min-height: 400px;">
+                        No poster available
+                    </div>
+                }
+            </div>
+
+            <!-- Movie information -->
+            <div class="col-md-8">
+                <div class="card-body p-4">
+
+                    <h1 class="display-5 fw-bold">
+                        @Model.Title
+                    </h1>
+
+                    <p class="text-muted fs-5">
+                        @Model.ReleaseYear
+                    </p>
+
+                    <div class="mb-4">
+                        @foreach (var genre in Model.Genres.OrderBy(g => g.Name))
+                        {
+                            <span class="badge bg-primary me-2 mb-2 p-2">
+                                @genre.Name
+                            </span>
+                        }
+                    </div>
+
+                    <h4>Overview</h4>
+
+                    <p class="fs-5">
+                        @Model.Description
+                    </p>
+
+                    @if (Model.Reviews.Any())
+                    {
+                        <div class="mt-4">
+                            <h5>Average Rating</h5>
+
+                            <span class="badge bg-warning text-dark fs-5">
+                                ⭐ @Model.Reviews.Average(r => r.Rating).ToString("0.0") / 10
+                            </span>
+                        </div>
+                    }
+
+                    <div class="mt-4">
+                        <a asp-action="Edit"
+                           asp-route-id="@Model.Id"
+                           class="btn btn-outline-primary">
+                            Edit Movie
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Reviews -->
+    <section id="reviews" class="mb-5">
+
+        <h2 class="mb-4">
+            User Reviews
+            <span class="text-muted fs-5">
+                (@Model.Reviews.Count)
+            </span>
+        </h2>
+
+        @if (Model.Reviews.Any())
         {
-            <img src="@Model.PosterUrl" style="max-width: 250px;" />
+            <div class="row g-3">
+                @foreach (var review in Model.Reviews)
+                {
+                    <div class="col-md-6">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+
+                                <div class="d-flex justify-content-between
+                                    align-items-center mb-3">
+
+                                    <h5 class="card-title mb-0">
+                                        @review.Author
+                                    </h5>
+
+                                    <span class="badge bg-warning text-dark">
+                                        ⭐ @review.Rating / 10
+                                    </span>
+
+                                </div>
+
+                                <p class="card-text">
+                                    @review.Text
+                                </p>
+
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
         }
-        </dd>
-    </dl>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.GenreId)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.GenreId)
-        </dd>
-    </dl>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Genre)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Genre)
-        </dd>
-    </dl>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Reviews)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Reviews)
-        </dd>
-    </dl>
+        else
+        {
+            <p class="text-muted">
+                No reviews yet.
+            </p>
+        }
+
+    </section>
+
+    <!-- Contact section -->
+    <section id="contact" class="card bg-light text-dark mb-5">
+        <div class="card-body p-4">
+            <h3>Contact FilmHub</h3>
+            <p class="mb-0">
+                Have questions about this movie?
+                Contact the FilmHub team.
+            </p>
+        </div>
+    </section>
+
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
-</div>
+
+<!-- Fixed contact button -->
+<a href="#contact"
+   class="btn btn-primary position-fixed bottom-0 end-0 m-4 shadow"
+   style="z-index: 1050;">
+    Contact Us
+</a>

@@ -8,8 +8,6 @@ public class Movie
     public int ReleaseYear { get; set; }
     public string? PosterUrl { get; set; }
 
-    public int GenreId { get; set; }
-    public Genre? Genre { get; set; }
-
+    public List<Genre> Genres { get; set; } = new();
     public List<Review> Reviews { get; set; } = new();
 }
