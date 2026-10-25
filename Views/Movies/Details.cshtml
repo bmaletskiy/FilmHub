@@ -121,6 +121,33 @@
         </div>
     }
 
+    <form asp-controller="Reviews"
+      asp-action="Create"
+      method="post"
+      class="mt-4">
+
+    <input type="hidden"
+           name="MovieId"
+           value="@Model.Id" />
+
+    <input type="text"
+       name="Author" 
+       class="form-control"
+       required
+       placeholder="Enter username"/>
+
+    <textarea name="Text"
+          class="form-control"
+          required
+          placeholder="Enter your comment">
+    </textarea>
+
+    <button type="submit">
+    Send
+    </button>
+
+</form>
+
     <div class="mt-4">
         <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-link">Edit movie</a>
     </div>

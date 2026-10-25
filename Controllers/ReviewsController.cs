@@ -48,13 +48,13 @@ public class ReviewsController : Controller
     // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Id,Author,Text,Rating,MovieId,Movie")] Review review)
+    public async Task<IActionResult> Create([Bind("Author,Text,Rating,MovieId")] Review review)
     {
         if (ModelState.IsValid)
         {
             _context.Add(review);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("Details", "Movies", new { id = review.MovieId });
         }
         return View(review);
     }
