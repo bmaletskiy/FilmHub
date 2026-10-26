@@ -7,6 +7,7 @@
     <UserSecretsId>6dcf4f97-b20f-4c84-b0c4-8fc19affdb17</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>.</DockerfileContext>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

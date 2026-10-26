@@ -1,0 +1,73 @@
+# Start FilmHub with: dotnet run --project FilmHub.csproj --launch-profile http
+# POST/PUT/DELETE change the database of the running app. Use a demo database.
+# Automated tests use SQLite in memory and never connect to PostgreSQL.
+@baseUrl = http://localhost:8081
+# Use existing genre IDs shown in the MVC /Genres page.
+@genreId = 1
+
+### List movies: 200 OK, JSON array with genre IDs and names
+GET {{baseUrl}}/api/movies
+Accept: application/json
+
+### Create: 201 Created with Location header
+# @name createMovie
+POST {{baseUrl}}/api/movies
+Content-Type: application/json
+
+{
+  "title": "C5 API demonstration",
+  "description": "A movie created through the REST API for the demonstration.",
+  "releaseYear": 2026,
+  "posterUrl": null,
+  "genreIds": [{{genreId}}]
+}
+
+### Copy the returned id here if your HTTP client does not support named responses.
+@movieId = 0
+
+### One movie: 200 OK (also follow Location from POST)
+GET {{baseUrl}}/api/movies/{{movieId}}
+Accept: application/json
+
+### Replace all editable fields: 204 No Content
+PUT {{baseUrl}}/api/movies/{{movieId}}
+Content-Type: application/json
+
+{
+  "title": "C5 API demonstration — updated",
+  "description": "Updated overview. GenreIds replaces the full genre selection.",
+  "releaseYear": 2025,
+  "posterUrl": null,
+  "genreIds": [{{genreId}}]
+}
+
+### Verify the update: 200 OK
+GET {{baseUrl}}/api/movies/{{movieId}}
+
+### Validation example: 400 ValidationProblemDetails; no movie is created
+POST {{baseUrl}}/api/movies
+Content-Type: application/json
+
+{
+  "title": " ",
+  "description": "Invalid example",
+  "releaseYear": 1800,
+  "genreIds": []
+}
+
+### Unknown genre: 400; no partial update (use a genuinely nonexistent genre ID)
+PUT {{baseUrl}}/api/movies/{{movieId}}
+Content-Type: application/json
+
+{
+  "title": "Must not be saved",
+  "description": "Unknown genre example",
+  "releaseYear": 2026,
+  "genreIds": [2147483647]
+}
+
+### Delete only the demo movie: 204; reviews and links cascade, genres remain
+DELETE {{baseUrl}}/api/movies/{{movieId}}
+
+### Verify deletion: 404 ProblemDetails
+GET {{baseUrl}}/api/movies/{{movieId}}

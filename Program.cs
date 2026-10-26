@@ -37,3 +37,6 @@ app.MapControllerRoute(
 
 
 app.Run();
+
+// Allows the integration tests to boot the real application with an isolated DbContext.
+public partial class Program { }
