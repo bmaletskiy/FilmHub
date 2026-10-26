@@ -1,107 +1,103 @@
-FilmHub — інструкція локального запуску
+# 🎬 FilmHub
 
-FilmHub — вебзастосунок для керування каталогом фільмів, розроблений на ASP.NET Core MVC (.NET 10) із використанням PostgreSQL, Entity Framework Core та Bootstrap.
+**FilmHub** — навчальний вебзастосунок для перегляду та керування каталогом фільмів на **ASP.NET Core MVC (.NET 10)** із базою даних **PostgreSQL**.
 
-1. Необхідне програмне забезпечення
+У застосунку можна створювати фільми й жанри, переглядати інформацію про фільми, редагувати та видаляти записи. Сторінка кожного фільму оформлена як Bootstrap Landing Page.
 
-Перед початком встановіть:
+## 🛠 Технології
 
-Git
+| Частина проєкту | Технологія |
+| --- | --- |
+| Серверна частина | C#, ASP.NET Core MVC (.NET 10) |
+| Доступ до даних | Entity Framework Core |
+| База даних | PostgreSQL 16 |
+| Інтерфейс | Razor Views, Bootstrap |
+| Локальний запуск | Docker, Docker Compose |
+| Хмарне розгортання | AWS EC2 |
+| Автоматизація | GitHub Actions, GHCR |
+| Аналітика | Google Analytics 4 |
 
-Docker Desktop
+## 🚀 Локальний запуск (Windows)
 
-Запустіть Docker Desktop і переконайтеся, що Docker Engine працює.
+> **Потрібно:** [Git](https://git-scm.com/downloads) і [Docker Desktop](https://www.docker.com/products/docker-desktop/). Перед виконанням команд запустіть Docker Desktop. Окремо встановлювати PostgreSQL або .NET SDK не потрібно.
+>
+> Усі команди нижче виконуються у **PowerShell**.
 
-Окремо встановлювати PostgreSQL або .NET SDK не потрібно.
+### 1. Завантажте проєкт
 
-2. Завантаження проєкту
-
-Відкрийте PowerShell і виконайте:
-
+```powershell
 git clone https://github.com/bmaletskiy/FilmHub.git
 cd FilmHub
+```
 
-3. Налаштування середовища
+### 2. Створіть файл `.env`
 
-У корені проєкту створіть файл .env із таким вмістом:
+У корені проєкту (поряд із `docker-compose.yml`) створіть файл **`.env`** з таким вмістом:
 
+```dotenv
 DB_PASSWORD=FilmHubLocal123
 TMDB_TOKEN=
+```
 
-DB_PASSWORD — локальний пароль PostgreSQL.
+`DB_PASSWORD` — пароль **лише для локальної тестової бази**. `TMDB_TOKEN` можна залишити порожнім: для звичайного створення та перегляду фільмів він не потрібен.
 
-TMDB_TOKEN можна залишити порожнім. Він потрібний лише для імпорту фільмів через TMDB API.
+### 3. Запустіть контейнери
 
-4. Запуск контейнерів
-
-У PowerShell із папки FilmHub виконайте:
-
+```powershell
 docker compose up -d --build
+```
 
-Команда збере ASP.NET Core застосунок і запустить два основні контейнери:
+Docker автоматично збере FilmHub, завантажить PostgreSQL 16, створить мережу й volumes та запустить контейнери.
 
-app — FilmHub;
+Перевірка:
 
-db — PostgreSQL 16.
-
-Перевірте їхній стан:
-
+```powershell
 docker compose ps
+```
 
-5. Створення таблиць бази даних
+### 4. Застосуйте міграції бази даних
 
-Під час першого запуску необхідно застосувати міграції Entity Framework Core.
+**Цей крок обов'язковий при першому запуску:** Docker створює базу `FilmHubDb`, але таблиці застосунку створюються міграціями EF Core.
 
-Для цього виконайте наведені команди в PowerShell, перебуваючи в корені проєкту.
+У тій самій папці проєкту виконайте команди **послідовно**:
 
-Спочатку отримайте ідентифікатор контейнера PostgreSQL:
-
+```powershell
 $dbContainer = docker compose ps -q db
-
-Задайте підключення до локальної бази:
-
 $connection = "Host=localhost;Port=5432;Database=FilmHubDb;Username=postgres;Password=FilmHubLocal123"
+```
 
-Тепер застосуйте міграції через тимчасовий контейнер .NET SDK:
-
+```powershell
 docker run --rm --network "container:$dbContainer" -v "${PWD}:/src" -w /src -e "ConnectionStrings__DefaultConnection=$connection" mcr.microsoft.com/dotnet/sdk:10.0 sh -c 'dotnet tool install --global dotnet-ef --version 10.* && export PATH="$PATH:/root/.dotnet/tools" && dotnet ef database update'
+```
 
-Ця команда створить необхідні таблиці відповідно до міграцій проєкту.
+> Команда запускає **тимчасовий контейнер .NET SDK** і застосовує міграції до PostgreSQL. Перший запуск може потребувати завантаження SDK та NuGet-пакетів.
 
-6. Відкриття FilmHub
+### 5. Відкрийте сайт
 
-Після застосування міграцій відкрийте:
+**Адреса:** [http://localhost:8081](http://localhost:8081)
 
-http://localhost:8081
+На новому комп'ютері каталог спочатку буде порожнім — це нормально. Для перевірки функцій:
 
-База даних після першого запуску буде порожньою. Це нормально.
+1. Створіть жанр у розділі **Genres**.
+2. Створіть фільм у **Movies → Create**, зазначте його жанр і, за бажанням, додайте постер.
+3. Відкрийте **Details**, щоб переглянути Landing Page.
+4. Перевірте **Edit** і **Delete**; відгуки — на сторінці фільму (відповідно до наявної версії застосунку).
 
-Для перевірки роботи застосунку можна:
+## 🐳 Корисні команди Docker
 
-Відкрити розділ Genres і створити жанр.
+| Дія | Команда |
+| --- | --- |
+| Перевірити стан контейнерів | `docker compose ps` |
+| Переглянути логи | `docker compose logs -f` |
+| Зупинити застосунок | `docker compose down` |
+| Запустити знову | `docker compose up -d` |
 
-Перейти в Movies і створити фільм.
+Дані PostgreSQL та завантажені постери зберігаються в Docker volumes. **Не використовуйте `docker compose down -v`**, якщо хочете зберегти ці дані.
 
-Заповнити назву, рік, опис, вибрати жанр і завантажити постер.
+## ☁️ Розгортання
 
-Відкрити Details для перегляду Landing Page.
+Production-версія FilmHub розміщується на **AWS EC2 (Ubuntu)**. GitHub Actions збирає Docker image після push у гілку `master` і публікує його в **GitHub Container Registry**. На сервері налаштовано періодичну перевірку оновлень і перевстановлення контейнера застосунку.
 
-Перевірити редагування, видалення та функції відгуків.
+---
 
-7. Керування застосунком
-
-Перегляд запущених контейнерів:
-
-docker compose ps
-
-Зупинка:
-
-docker compose down
-
-Повторний запуск:
-
-docker compose up -d
-
-Дані PostgreSQL зберігаються в Docker volume і не видаляються після звичайної зупинки контейнерів.
-
-Увага: команда docker compose down -v видаляє також volumes, тому її не слід використовувати, якщо потрібно зберегти дані.
+*Навчальний проєкт із дисципліни «Веб-технології».*
