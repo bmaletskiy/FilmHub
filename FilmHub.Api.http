@@ -1,17 +1,37 @@
+# FilmHub C5 / B9 / B1 requests for Visual Studio HTTP Client.
+# Docker app: http://localhost:8081. The http launch profile uses port 5103.
+# Click Send Request above each request. Sending one request does not run the others.
+# POST/PUT/DELETE examples mutate data; use only a demonstration database.
+# For an independent GET-only presentation open FilmHub.Demo.http.
+# Edit movieId/b9MovieId only after creating that demonstration movie.
+# For B1 copy nextLink into b1NextLink; set b1LastSkip=max(0,totalCount-1).
+# Change b9Run/b1Run for a cold key; a repeated cache hit has Age (including Age: 0).
+# Automated CRUD/cache tests use SQLite in memory, without PostgreSQL writes.
+@baseUrl = http://localhost:8081
+@genreId = 9
+@movieId = 0
+@b9Run = take-3
+@b9MovieId = 0
+@b1Run = take-1
+@b1NextLink = /api/movies?demo=take-1&skip=2&limit=2
+@b1LastSkip = 0
+
+###
+
 # Start FilmHub with: dotnet run --project FilmHub.csproj --launch-profile http
 # POST/PUT/DELETE change the database of the running app. Use a demo database.
 # Automated tests use SQLite in memory and never connect to PostgreSQL.
-@baseUrl = http://localhost:8081
 # Use existing genre IDs shown in the MVC /Genres page.
-@genreId = 9
-
-### List movies: 200 OK, JSON array with genre IDs and names
-GET {{baseUrl}}/api/movies
+# List movies: 200 OK, JSON array with genre IDs and names
+GET {{baseUrl}}/api/movies HTTP/1.1
 Accept: application/json
 
-### Create: 201 Created with Location header
+###
+
+# Create: 201 Created with Location header
 # @name createMovie
-POST {{baseUrl}}/api/movies
+POST {{baseUrl}}/api/movies HTTP/1.1
+Accept: application/json
 Content-Type: application/json
 
 {
@@ -22,15 +42,18 @@ Content-Type: application/json
   "genreIds": [{{genreId}}]
 }
 
-### Copy the returned id here if your HTTP client does not support named responses.
-@movieId = 0
+###
 
-### One movie: 200 OK (also follow Location from POST)
-GET {{baseUrl}}/api/movies/{{movieId}}
+# Copy the returned id here if your HTTP client does not support named responses.
+# One movie: 200 OK (also follow Location from POST)
+GET {{baseUrl}}/api/movies/{{movieId}} HTTP/1.1
 Accept: application/json
 
-### Replace all editable fields: 204 No Content
-PUT {{baseUrl}}/api/movies/{{movieId}}
+###
+
+# Replace all editable fields: 204 No Content
+PUT {{baseUrl}}/api/movies/{{movieId}} HTTP/1.1
+Accept: application/json
 Content-Type: application/json
 
 {
@@ -41,11 +64,17 @@ Content-Type: application/json
   "genreIds": [{{genreId}}]
 }
 
-### Verify the update: 200 OK
-GET {{baseUrl}}/api/movies/{{movieId}}
+###
 
-### Validation example: 400 ValidationProblemDetails; no movie is created
-POST {{baseUrl}}/api/movies
+# Verify the update: 200 OK
+GET {{baseUrl}}/api/movies/{{movieId}} HTTP/1.1
+Accept: application/json
+
+###
+
+# Validation example: 400 ValidationProblemDetails; no movie is created
+POST {{baseUrl}}/api/movies HTTP/1.1
+Accept: application/json
 Content-Type: application/json
 
 {
@@ -55,8 +84,11 @@ Content-Type: application/json
   "genreIds": []
 }
 
-### Unknown genre: 400; no partial update (use a genuinely nonexistent genre ID)
-PUT {{baseUrl}}/api/movies/{{movieId}}
+###
+
+# Unknown genre: 400; no partial update (use a genuinely nonexistent genre ID)
+PUT {{baseUrl}}/api/movies/{{movieId}} HTTP/1.1
+Accept: application/json
 Content-Type: application/json
 
 {
@@ -66,36 +98,50 @@ Content-Type: application/json
   "genreIds": [2147483647]
 }
 
-### Delete only the demo movie: 204; reviews and links cascade, genres remain
-DELETE {{baseUrl}}/api/movies/{{movieId}}
+###
 
-### Verify deletion: 404 ProblemDetails
-GET {{baseUrl}}/api/movies/{{movieId}}
+# Delete only the demo movie: 204; reviews and links cascade, genres remain
+DELETE {{baseUrl}}/api/movies/{{movieId}} HTTP/1.1
+Accept: application/json
 
-### ================================================================
+###
+
+# Verify deletion: 404 ProblemDetails
+GET {{baseUrl}}/api/movies/{{movieId}} HTTP/1.1
+Accept: application/json
+
+###
+
 # B9: OutputCache video demonstration (run these steps in order).
 # Keep your existing baseUrl above. For the http launch profile use localhost:5103.
 # Use a demo database for mutations. Automated B9 tests only use SQLite in memory.
 # Change b9Run before a new take to start with a fresh cache key, or restart the app.
 # Inspect RESPONSE HEADERS: cold response has no Age; a hit has Age (even Age: 0).
 # The HTTP client's elapsed time is a real observation, not a guaranteed speedup.
-@b9Run = take-3
 # Existing genreId above must identify a real genre in the demonstration database.
 # After B9 POST, copy ONLY its returned ID here (never an existing unrelated movie).
-@b9MovieId = 0
+# B9 1. Cold list: no Age header (fresh b9Run)
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}} HTTP/1.1
+Accept: application/json
 
-### B9 1. Cold list: no Age header (fresh b9Run)
-GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+###
 
-### B9 2. Same URL immediately: cache hit, Age header, identical JSON
-GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+# B9 2. Same URL immediately: cache hit, Age header, identical JSON
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}} HTTP/1.1
+Accept: application/json
 
-### B9 3. Different page: separate cache entry; repeat to see Age
-# B1 pagination is future work: the current JSON is still the full list.
-GET {{baseUrl}}/api/movies?page=2&pageSize=10&demo={{b9Run}}
+###
 
-### B9 4. Create demo movie: 201; invalidates ALL list/query/detail variants
-POST {{baseUrl}}/api/movies
+# B9 3. Different page: separate cache entry; repeat to see Age
+# Legacy query variation. For actual B1 paging use skip/limit in the B1 section below.
+GET {{baseUrl}}/api/movies?page=2&pageSize=10&demo={{b9Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B9 4. Create demo movie: 201; invalidates ALL list/query/detail variants
+POST {{baseUrl}}/api/movies HTTP/1.1
+Accept: application/json
 Content-Type: application/json
 
 {
@@ -106,14 +152,23 @@ Content-Type: application/json
   "genreIds": [{{genreId}}]
 }
 
-### B9 5. Previously warm list: cold again, contains the new movie
-GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+###
 
-### B9 6. Movie detail: set b9MovieId from POST; run twice to observe Age
-GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}}
+# B9 5. Previously warm list: cold again, contains the new movie
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}} HTTP/1.1
+Accept: application/json
 
-### B9 7. Update: 204; invalidates list and detail caches
-PUT {{baseUrl}}/api/movies/{{b9MovieId}}
+###
+
+# B9 6. Movie detail: set b9MovieId from POST; run twice to observe Age
+GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B9 7. Update: 204; invalidates list and detail caches
+PUT {{baseUrl}}/api/movies/{{b9MovieId}} HTTP/1.1
+Accept: application/json
 Content-Type: application/json
 
 {
@@ -124,21 +179,131 @@ Content-Type: application/json
   "genreIds": [{{genreId}}]
 }
 
-### B9 8. Detail after PUT: no Age, updated title; repeat to see Age
-GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}}
+###
 
-### B9 9. Other list variant also invalidated: updated title, no Age
-GET {{baseUrl}}/api/movies?page=2&pageSize=10&demo={{b9Run}}
+# B9 8. Detail after PUT: no Age, updated title; repeat to see Age
+GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}} HTTP/1.1
+Accept: application/json
 
-### B9 10. Delete ONLY the B9 demo movie: 204
-DELETE {{baseUrl}}/api/movies/{{b9MovieId}}
+###
 
-### B9 11. Formerly cached detail: 404, never the old 200 response
-GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}}
+# B9 9. Other list variant also invalidated: updated title, no Age
+GET {{baseUrl}}/api/movies?page=2&pageSize=10&demo={{b9Run}} HTTP/1.1
+Accept: application/json
 
-### B9 12. List: no deleted movie, no Age until the following identical GET
-GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+###
 
+# B9 10. Delete ONLY the B9 demo movie: 204
+DELETE {{baseUrl}}/api/movies/{{b9MovieId}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B9 11. Formerly cached detail: 404, never the old 200 response
+GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B9 12. List: no deleted movie, no Age until the following identical GET
 # Numerical proof without changing any PostgreSQL data:
 # dotnet test --filter FullyQualifiedName~Demonstration_measures_uncached_cold_and_warm_queries --logger "console;verbosity=detailed"
 # The test reports observed SQL command counts and milliseconds. Warm GET must execute 0 SQL.
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B1: skip/limit pagination. All requests below are GET-only.
+# Docker: docker compose up -d --build --no-deps app (existing db must be running).
+# Existing baseUrl=http://localhost:8081 is correct for docker-compose.yml.
+# New b1Run starts with a cold cache key. Repeat each URL within 60 seconds for Age.
+# Copy nextLink from the first response here; it is a relative path.
+# For the exact final page: set this to totalCount - 1 (or 0 if totalCount is 0).
+# B1 1. First page: envelope with items, totalCount, skip=0, limit=2, nextLink
+GET {{baseUrl}}/api/movies?skip=0&limit=2&demo={{b1Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 2. Identical URL: same JSON, Age header indicates cache hit
+GET {{baseUrl}}/api/movies?skip=0&limit=2&demo={{b1Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 3. Follow nextLink copied from response (skip if nextLink is null)
+GET {{baseUrl}}{{b1NextLink}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 4. Different offset: separate cache entry, stable ID order
+GET {{baseUrl}}/api/movies?skip=2&limit=2&demo={{b1Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 5. Different limit: independent cache entry
+GET {{baseUrl}}/api/movies?skip=0&limit=3&demo={{b1Run}} HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 6. Last page: set b1LastSkip from totalCount, then nextLink must be null
+GET {{baseUrl}}/api/movies?skip={{b1LastSkip}}&limit=1 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 7. Beyond the end: empty items and null nextLink, totalCount retained
+GET {{baseUrl}}/api/movies?skip=2147483647&limit=100 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 8. Only limit: skip defaults to 0
+GET {{baseUrl}}/api/movies?limit=2 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 9. Only skip: limit defaults to 20
+GET {{baseUrl}}/api/movies?skip=0 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 10. Negative skip: 400 ValidationProblemDetails
+GET {{baseUrl}}/api/movies?skip=-1&limit=2 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 11. Zero limit: 400
+GET {{baseUrl}}/api/movies?skip=0&limit=0 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 12. Above maximum limit=100: 400
+GET {{baseUrl}}/api/movies?skip=0&limit=101 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 13. Non-integer offset: 400
+GET {{baseUrl}}/api/movies?skip=abc&limit=2 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 14. Compatibility: no skip/limit still returns the complete C5 array
+# CRUD + cache freshness without any real PostgreSQL writes:
+# dotnet test --no-restore --filter FullyQualifiedName~MoviesPaginationTests
+# This suite warms all pages, performs POST/PUT/DELETE in SQLite in memory,
+# and asserts fresh totalCount, items, boundaries and nextLink after each mutation.
+GET {{baseUrl}}/api/movies HTTP/1.1
+Accept: application/json
+
+###

@@ -64,14 +64,15 @@ public sealed class MoviesCacheTests : IDisposable
     }
 
     [Fact]
-    public async Task All_query_parameters_vary_cache_for_future_pagination_and_filters()
+    public async Task All_query_parameters_vary_cache_for_pagination_and_other_queries()
     {
-        // B1 is not implemented yet: bodies currently match, but keys must already be distinct.
+        // Legacy arrays and B1 envelopes use separate cache keys; other query values also vary.
         foreach (var path in new[]
         {
             "/api/movies", "/api/movies?page=1&pageSize=10", "/api/movies?page=2&pageSize=10",
             "/api/movies?page=1&pageSize=20", "/api/movies?page=1&pageSize=10&genreId=2",
-            "/api/movies?page=1&pageSize=10&sort=title", "/api/movies/1?view=summary"
+            "/api/movies?page=1&pageSize=10&sort=title", "/api/movies/1?view=summary",
+            "/api/movies?skip=0&limit=1", "/api/movies?skip=1&limit=1", "/api/movies?skip=0&limit=2"
         })
         {
             var before = factory.Queries.Count;

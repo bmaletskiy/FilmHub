@@ -2,6 +2,8 @@
 
 The API uses the existing `Movie`, `Genre`, `Review` and `AppDbContext`. MVC CRUD and its file-upload flow remain unchanged. No schema changes or migrations are required.
 
+B1 adds opt-in pagination: `GET /api/movies?skip=0&limit=20` returns `{ items, totalCount, skip, limit, nextLink }`. Requests with neither pagination parameter retain the complete original array. Either parameter alone enables pagination with the other defaulted. See [B1 pagination](B1-PAGINATION.md) for validation, cache interaction and Docker demonstration steps.
+
 | Request | Success | Errors |
 | --- | --- | --- |
 | GET /api/movies | 200, array ordered by ID (empty array if no movies) | |

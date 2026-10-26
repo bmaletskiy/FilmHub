@@ -4,7 +4,7 @@
 
 ## Freshness and pagination
 
-The key includes the scheme, host, path, **all query parameters**, and a movie-data version. Thus `page`, `pageSize`, filters, sort order and any future B1 parameters never share an entry with different query values. This change does not itself add pagination: C5 currently returns the full list. With B1, all pages must be invalidated on writes because inserting/deleting/updating a movie can shift page boundaries or change a filter/sort result.
+The key includes the scheme, host, path, **all query parameters**, and a movie-data version. B1 now supports `skip`/`limit` with a paged envelope; requests without these parameters retain the C5 array. Different offsets, limits and other query values have independent entries. The old `page`/`pageSize` examples still demonstrate query variation but do not enable pagination. All pages are invalidated on writes because inserting/deleting/updating a movie can shift page boundaries or change a filter/sort result. See [B1](B1-PAGINATION.md).
 
 After a successful `SaveChanges` involving a Movie, Genre or MovieGenres join row, a scoped EF interceptor increments the shared version and evicts the movie-cache tag. It covers API POST/PUT/DELETE and the existing MVC/import/genre write paths without changing their controllers. Validation failures, failed saves and no-op saves do not invalidate. Invalidation completes after the save even if the caller disconnects. Existing models, relationships, database schema and write validation are unchanged.
 
@@ -16,7 +16,7 @@ The scope is one application process with normal `SaveChanges` calls. Direct SQL
 
 1. Start the application using the existing environment. Set `baseUrl` to its URL (existing file value retained; the `http` launch profile normally uses port 5103). Use a demonstration database for CRUD examples.
 2. Find the **B9** section. Change `b9Run` to a new value. Run the cold GET, then the identical GET within 60 seconds. Inspect response headers: a cached response has `Age`, including `Age: 0`; a cold response has no `Age`. Record the actual elapsed times displayed by the HTTP client, with no promised ratio.
-3. GET another page/query value: it has a separate cold entry. B1 is not yet implemented, so the full-list JSON can still match.
+3. GET another query value: it has a separate cold entry. The original B9 examples use the legacy array format; use the B1 section for actual `skip`/`limit` pages.
 4. POST the demo movie and copy its returned ID into `b9MovieId`. GET the previously warm list: no `Age`, new movie present. GET the detail twice to warm it.
 5. PUT the movie. The next detail and each previously cached list variant show updated data without `Age`; a repeat is a hit again.
 6. DELETE that demo movie. The detail immediately returns 404; the list excludes it. Do not use the ID of an unrelated existing movie.

@@ -1,0 +1,58 @@
+# Visual Studio: click Send Request above any GET; no setup requests or IDs required.
+# Uses the existing Docker app on http://localhost:8081. Start the app beforehand.
+# GET-only: no film creation, updates or deletion. Each URL is self-contained.
+# For B9 run the same request twice within 60 seconds and inspect response headers.
+# A cache hit has Age, including Age: 0. The first request may already be cached.
+# B1 examples require a running build with B1; an array instead of an envelope
+# means the running app does not match the local B1 contract.
+
+###
+
+# C5 - Full movie list, original JSON array.
+GET http://localhost:8081/api/movies HTTP/1.1
+Accept: application/json
+
+###
+
+# B9 - Run once, then again: identical JSON; cached response includes Age.
+GET http://localhost:8081/api/movies?demo=visual-studio-cache HTTP/1.1
+Accept: application/json
+
+###
+
+# B9 - Identical URL for a second click; also works independently.
+GET http://localhost:8081/api/movies?demo=visual-studio-cache HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 - First page: items, totalCount, skip, limit, nextLink.
+GET http://localhost:8081/api/movies?skip=0&limit=2 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 - Next offset; independent GET, no copied nextLink required.
+# With two or fewer movies this correctly returns empty items and nextLink=null.
+GET http://localhost:8081/api/movies?skip=2&limit=2 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 - Different limit, independent cache entry.
+GET http://localhost:8081/api/movies?skip=0&limit=3 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 - End of data: HTTP 200, empty items, nextLink=null.
+GET http://localhost:8081/api/movies?skip=2147483647&limit=100 HTTP/1.1
+Accept: application/json
+
+###
+
+# B1 - Validation example: HTTP 400 is the expected response, not a client error.
+GET http://localhost:8081/api/movies?skip=0&limit=101 HTTP/1.1
+Accept: application/json
+
+###

@@ -5,6 +5,8 @@ using FilmHub.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Globalization;
 
 namespace FilmHub.Controllers.Api;
 
@@ -14,12 +16,46 @@ public sealed class MoviesApiController(AppDbContext context) : ControllerBase
 {
     [HttpGet]
     [OutputCache(PolicyName = MovieApiCache.Policy)]
-    [ProducesResponseType<IReadOnlyList<MovieResponse>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<MovieResponse>>> GetAll(CancellationToken cancellationToken)
+    // Legacy: MovieResponse[]. With skip/limit: MoviePageResponse (see docs/B1-PAGINATION.md).
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetAll([FromQuery(Name = "")] MoviePageQuery page, CancellationToken cancellationToken)
     {
-        var movies = await context.Movies.AsNoTracking().Include(m => m.Genres)
-            .OrderBy(m => m.Id).ToListAsync(cancellationToken);
-        return Ok(movies.Select(MovieResponse.FromMovie).ToArray());
+        foreach (var name in new[] { "skip", "limit" })
+        {
+            if (Request.Query.TryGetValue(name, out var values)
+                && (values.Count != 1 || string.IsNullOrWhiteSpace(values[0])))
+                ModelState.AddModelError(name, "Specify one non-empty integer value.");
+        }
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var query = context.Movies.AsNoTracking();
+        if (page.Skip is null && page.Limit is null)
+        {
+            // Keep old clients and the original C5 JSON-array contract working.
+            var all = await query.Include(m => m.Genres).OrderBy(m => m.Id).ToListAsync(cancellationToken);
+            return Ok(all.Select(MovieResponse.FromMovie).ToArray());
+        }
+
+        var skip = page.Skip ?? 0;
+        var limit = page.Limit ?? MoviePageQuery.DefaultLimit;
+        var totalCount = await query.CountAsync(cancellationToken);
+        var movies = await query.Include(m => m.Genres).OrderBy(m => m.Id)
+            .Skip(skip).Take(limit).ToListAsync(cancellationToken);
+        // Use long arithmetic so a valid, large skip cannot overflow when adding limit.
+        var nextSkip = (long)skip + limit;
+        string? nextLink = null;
+        if (movies.Count > 0 && nextSkip < totalCount)
+        {
+            var parameters = Request.Query.ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
+            parameters.Remove("skip");
+            parameters.Remove("limit");
+            parameters["skip"] = nextSkip.ToString(CultureInfo.InvariantCulture);
+            parameters["limit"] = limit.ToString(CultureInfo.InvariantCulture);
+            // Preserve other query values and PathBase, without trusting Host/proxy headers.
+            nextLink = QueryHelpers.AddQueryString(Request.PathBase.Add(Request.Path).Value!, parameters);
+        }
+        return Ok(new MoviePageResponse(movies.Select(MovieResponse.FromMovie).ToArray(), totalCount, skip, limit, nextLink));
     }
 
     [HttpGet("{id:int}")]
