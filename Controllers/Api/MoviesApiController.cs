@@ -1,8 +1,10 @@
 using FilmHub.Contracts.Movies;
+using FilmHub.Caching;
 using FilmHub.Data;
 using FilmHub.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace FilmHub.Controllers.Api;
 
@@ -11,6 +13,7 @@ namespace FilmHub.Controllers.Api;
 public sealed class MoviesApiController(AppDbContext context) : ControllerBase
 {
     [HttpGet]
+    [OutputCache(PolicyName = MovieApiCache.Policy)]
     [ProducesResponseType<IReadOnlyList<MovieResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MovieResponse>>> GetAll(CancellationToken cancellationToken)
     {
@@ -20,6 +23,7 @@ public sealed class MoviesApiController(AppDbContext context) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [OutputCache(PolicyName = MovieApiCache.Policy)]
     [ProducesResponseType<MovieResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MovieResponse>> GetById(int id, CancellationToken cancellationToken)

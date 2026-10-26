@@ -3,7 +3,7 @@
 # Automated tests use SQLite in memory and never connect to PostgreSQL.
 @baseUrl = http://localhost:8081
 # Use existing genre IDs shown in the MVC /Genres page.
-@genreId = 1
+@genreId = 9
 
 ### List movies: 200 OK, JSON array with genre IDs and names
 GET {{baseUrl}}/api/movies
@@ -71,3 +71,74 @@ DELETE {{baseUrl}}/api/movies/{{movieId}}
 
 ### Verify deletion: 404 ProblemDetails
 GET {{baseUrl}}/api/movies/{{movieId}}
+
+### ================================================================
+# B9: OutputCache video demonstration (run these steps in order).
+# Keep your existing baseUrl above. For the http launch profile use localhost:5103.
+# Use a demo database for mutations. Automated B9 tests only use SQLite in memory.
+# Change b9Run before a new take to start with a fresh cache key, or restart the app.
+# Inspect RESPONSE HEADERS: cold response has no Age; a hit has Age (even Age: 0).
+# The HTTP client's elapsed time is a real observation, not a guaranteed speedup.
+@b9Run = take-3
+# Existing genreId above must identify a real genre in the demonstration database.
+# After B9 POST, copy ONLY its returned ID here (never an existing unrelated movie).
+@b9MovieId = 0
+
+### B9 1. Cold list: no Age header (fresh b9Run)
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+
+### B9 2. Same URL immediately: cache hit, Age header, identical JSON
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+
+### B9 3. Different page: separate cache entry; repeat to see Age
+# B1 pagination is future work: the current JSON is still the full list.
+GET {{baseUrl}}/api/movies?page=2&pageSize=10&demo={{b9Run}}
+
+### B9 4. Create demo movie: 201; invalidates ALL list/query/detail variants
+POST {{baseUrl}}/api/movies
+Content-Type: application/json
+
+{
+  "title": "B9 cache demo — before PUT",
+  "description": "Demonstrates invalidation after successful writes.",
+  "releaseYear": 2026,
+  "posterUrl": null,
+  "genreIds": [{{genreId}}]
+}
+
+### B9 5. Previously warm list: cold again, contains the new movie
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+
+### B9 6. Movie detail: set b9MovieId from POST; run twice to observe Age
+GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}}
+
+### B9 7. Update: 204; invalidates list and detail caches
+PUT {{baseUrl}}/api/movies/{{b9MovieId}}
+Content-Type: application/json
+
+{
+  "title": "B9 cache demo — after PUT",
+  "description": "The next GET must show this updated movie immediately.",
+  "releaseYear": 2026,
+  "posterUrl": null,
+  "genreIds": [{{genreId}}]
+}
+
+### B9 8. Detail after PUT: no Age, updated title; repeat to see Age
+GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}}
+
+### B9 9. Other list variant also invalidated: updated title, no Age
+GET {{baseUrl}}/api/movies?page=2&pageSize=10&demo={{b9Run}}
+
+### B9 10. Delete ONLY the B9 demo movie: 204
+DELETE {{baseUrl}}/api/movies/{{b9MovieId}}
+
+### B9 11. Formerly cached detail: 404, never the old 200 response
+GET {{baseUrl}}/api/movies/{{b9MovieId}}?demo={{b9Run}}
+
+### B9 12. List: no deleted movie, no Age until the following identical GET
+GET {{baseUrl}}/api/movies?page=1&pageSize=10&demo={{b9Run}}
+
+# Numerical proof without changing any PostgreSQL data:
+# dotnet test --filter FullyQualifiedName~Demonstration_measures_uncached_cold_and_warm_queries --logger "console;verbosity=detailed"
+# The test reports observed SQL command counts and milliseconds. Warm GET must execute 0 SQL.
