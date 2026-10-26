@@ -1,0 +1,14 @@
+@model FilmHub.Seo.MovieSeo
+<meta name="description" content="@Model.Description" />
+<link rel="canonical" href="@Model.CanonicalUrl" />
+<meta property="og:type" content="video.movie" />
+<meta property="og:site_name" content="FilmHub" />
+<meta property="og:title" content="@Model.Title" />
+<meta property="og:description" content="@Model.Description" />
+<meta property="og:url" content="@Model.CanonicalUrl" />
+<meta property="og:image" content="@Model.ImageUrl" />
+<meta property="og:image:alt" content="@Model.ImageAlt" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="@Model.Title" />
+<meta name="twitter:description" content="@Model.Description" />
+<meta name="twitter:image" content="@Model.ImageUrl" />

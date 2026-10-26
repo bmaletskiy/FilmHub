@@ -1,7 +1,10 @@
 @model FilmHub.Models.Movie
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 @{
     ViewData["Title"] = Model.Title;
+    var seo = FilmHub.Seo.MovieSeo.Create(Model, Configuration);
+    ViewData["SeoTitle"] = seo.Title;
     var avg = Model.Reviews.Any() ? Model.Reviews.Average(r => r.Rating) : 0;
 }
 
@@ -164,3 +167,6 @@
         </div>
     </div>
 </div>
+@section Seo {
+    <partial name="_MovieSeo" model="seo" />
+}
