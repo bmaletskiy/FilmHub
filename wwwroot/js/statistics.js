@@ -17,7 +17,7 @@
         data: {
             labels: data.years.map(item => item.Year),
             datasets: [{
-                label: 'Кількість фільмів',
+                label: 'Number of movies',
                 data: data.years.map(item => item.Count),
                 backgroundColor: '#0d6efd',
                 borderRadius: 4
@@ -27,8 +27,8 @@
             ...sharedOptions,
             plugins: { legend: { display: false } },
             scales: {
-                x: { title: { display: true, text: 'Рік випуску' } },
-                y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Кількість фільмів' } }
+                x: { title: { display: true, text: 'Release year' } },
+                y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Number of movies' } }
             }
         }
     });
@@ -40,7 +40,7 @@
         data: {
             labels: data.genres.map(item => item.Name),
             datasets: [{
-                label: 'Кількість фільмів',
+                label: 'Number of movies',
                 data: data.genres.map(item => item.Count),
                 backgroundColor: data.genres.map((_, index) => `hsl(${(index * 137.508) % 360}, 65%, 47%)`),
                 borderWidth: 2,

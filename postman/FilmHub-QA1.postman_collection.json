@@ -1,0 +1,916 @@
+﻿{
+    "info":  {
+                 "name":  "FilmHub QA1 - C5 CRUD + B1 pagination",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                 "description":  "Run the entire collection in order. Only uniquely owned records may be mutated. See docs/QA1-POSTMAN.md."
+             },
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://localhost:5103"
+                     },
+                     {
+                         "key":  "genreId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "ownerMarker",
+                         "value":  ""
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "01 - Discover genres, safely clean previous run, initialize",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027200 JSON movie array\u0027,()=\u003e{pm.response.to.have.status(200); pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/json\u0027);});",
+                                                                   "const all = pm.response.json();",
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "pm.test(\u0027DTOs and ascending unique IDs\u0027,()=\u003e{pm.expect(all).to.be.an(\u0027array\u0027);all.forEach(movie);pm.expect(all.map(m=\u003em.id)).to.eql([...new Set(all.map(m=\u003em.id))].sort((a,b)=\u003ea-b));});",
+                                                                   "const previous = pm.collectionVariables.get(\u0027ownerMarker\u0027);",
+                                                                   "const stale = /^FilmHub-QA1:[0-9a-f-]{36}$/.test(previous || \u0027\u0027) ? all.filter(m =\u003e m.description === previous \u0026\u0026 [\u0027FilmHub QA1 \u0027+previous.slice(12),\u0027FilmHub QA1 updated \u0027+previous.slice(12)].includes(m.title)) : [];",
+                                                                   "function initialize() {",
+                                                                   " const configured = Number(pm.collectionVariables.get(\u0027genreId\u0027));",
+                                                                   " const available = all.flatMap(m=\u003em.genres).find(g=\u003eg.id\u003e0);",
+                                                                   " const genre = configured \u003e 0 \u0026\u0026 Number.isInteger(configured) ? configured : available \u0026\u0026 available.id;",
+                                                                   " pm.test(\u0027Existing genre available (otherwise set genreId)\u0027,()=\u003epm.expect(genre).to.be.above(0));",
+                                                                   " if (!genre) {pm.execution.setNextRequest(null);return;}",
+                                                                   " pm.collectionVariables.set(\u0027activeGenreId\u0027,genre);",
+                                                                   " const marker=\u0027FilmHub-QA1:\u0027+pm.variables.replaceIn(\u0027{{$guid}}\u0027);",
+                                                                   " pm.collectionVariables.set(\u0027ownerMarker\u0027,marker);",
+                                                                   " pm.collectionVariables.unset(\u0027movieId\u0027);",
+                                                                   " pm.collectionVariables.set(\u0027createBody\u0027,JSON.stringify({title:\u0027FilmHub QA1 \u0027+marker.slice(12),description:marker,releaseYear:2026,posterUrl:\u0027/images/qa1-test.jpg\u0027,genreIds:[genre]}));",
+                                                                   " pm.collectionVariables.set(\u0027updateBody\u0027,JSON.stringify({title:\u0027FilmHub QA1 updated \u0027+marker.slice(12),description:marker,releaseYear:2025,posterUrl:null,genreIds:[genre]}));",
+                                                                   "}",
+                                                                   "function cleanup(i) {",
+                                                                   " if(i===stale.length){initialize();return;}",
+                                                                   " const m=stale[i];",
+                                                                   " pm.sendRequest(pm.collectionVariables.get(\u0027baseUrl\u0027)+\u0027/api/movies/\u0027+m.id,(err,res)=\u003e{",
+                                                                   "  if(err || res.code!==200 || res.json().description!==previous || res.json().title!==m.title){pm.test(\u0027Safe cleanup ownership\u0027,()=\u003e{throw Error(\u0027Cleanup blocked\u0027);});pm.execution.setNextRequest(null);return;}",
+                                                                   "  pm.sendRequest({url:pm.collectionVariables.get(\u0027baseUrl\u0027)+\u0027/api/movies/\u0027+m.id,method:\u0027DELETE\u0027},(e,r)=\u003e{",
+                                                                   "   pm.test(\u0027Previous owned record deleted\u0027,()=\u003e{pm.expect(e).to.eql(null);pm.expect(r.code).to.eql(204);});",
+                                                                   "   if(e || r.code!==204){pm.execution.setNextRequest(null);return;}cleanup(i+1);",
+                                                                   "  });",
+                                                                   " });",
+                                                                   "}",
+                                                                   "cleanup(0);"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies"
+                                 }
+                 },
+                 {
+                     "name":  "02 - POST test movie",
+                     "event":  [
+                                   {
+                                       "listen":  "prerequest",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "if (!pm.collectionVariables.get(\u0027createBody\u0027)) {pm.execution.skipRequest();throw Error(\u0027Run from request 01\u0027);}"
+                                                               ]
+                                                  }
+                                   },
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "if(pm.response.code!==201){pm.test(\u0027201 Created\u0027,()=\u003epm.response.to.have.status(201));pm.execution.setNextRequest(null);} else {",
+                                                                   " const m=pm.response.json(); pm.collectionVariables.set(\u0027movieId\u0027,m.id);",
+                                                                   " function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   " pm.test(\u0027201, Location and exact created data\u0027,()=\u003e{movie(m);const b=JSON.parse(pm.collectionVariables.get(\u0027createBody\u0027));[\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027].forEach(k=\u003epm.expect(m[k]).to.eql(b[k]));pm.expect(m.genres.map(g=\u003eg.id)).to.eql(b.genreIds);pm.expect(pm.response.headers.get(\u0027Location\u0027)).to.match(new RegExp(\u0027/api/movies/\u0027+m.id+\u0027$\u0027));});",
+                                                                   "}"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies",
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{{createBody}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              }
+                                 }
+                 },
+                 {
+                     "name":  "03 - GET created movie",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "pm.test(\u0027200 and exact persisted DTO\u0027,()=\u003e{pm.response.to.have.status(200);const m=pm.response.json();movie(m);const b=JSON.parse(pm.collectionVariables.get(\u0027createBody\u0027));pm.expect(m.id).to.eql(Number(pm.collectionVariables.get(\u0027movieId\u0027)));[\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027].forEach(k=\u003epm.expect(m[k]).to.eql(b[k]));pm.expect(m.genres.map(g=\u003eg.id)).to.eql(b.genreIds);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies/{{movieId}}"
+                                 }
+                 },
+                 {
+                     "name":  "04 - B1 first page and nextLink",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "const p=pm.response.json();",
+                                                                   "pm.test(\u0027200 paginated JSON contract\u0027,()=\u003e{pm.response.to.have.status(200);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/json\u0027);pm.expect(p).to.have.all.keys(\u0027items\u0027,\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027,\u0027nextLink\u0027);pm.expect(p.items).to.be.an(\u0027array\u0027);p.items.forEach(movie);[\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027].forEach(k=\u003epm.expect(Number.isInteger(p[k])).to.eql(true));pm.expect(p.totalCount).to.be.at.least(0);pm.expect(p.items.length).to.eql(Math.min(p.limit,Math.max(0,p.totalCount-p.skip)));pm.expect(p.items.map(m=\u003em.id)).to.eql([...new Set(p.items.map(m=\u003em.id))].sort((a,b)=\u003ea-b));});",
+                                                                   "pm.test(\u0027First page and nextLink arithmetic\u0027,()=\u003e{pm.expect(p.skip).to.eql(0);pm.expect(p.limit).to.eql(1);",
+                                                                   " if(p.totalCount\u003e1){pm.expect(p.nextLink).to.match(/^\\/[^/]/);pm.expect(p.nextLink.split(\u0027?\u0027)[0]).to.eql(\u0027/api/movies\u0027);const q=p.nextLink.split(\u0027?\u0027)[1];pm.expect(q).to.include(\u0027skip=1\u0027);pm.expect(q).to.include(\u0027limit=1\u0027);}",
+                                                                   " else pm.expect(p.nextLink).to.eql(null);",
+                                                                   "});",
+                                                                   "pm.collectionVariables.set(\u0027firstPageId\u0027,p.items.length?p.items[0].id:0);",
+                                                                   "pm.collectionVariables.set(\u0027followPath\u0027,p.nextLink || \u0027/api/movies?skip=1\u0026limit=1\u0027);"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=0\u0026limit=1"
+                                 }
+                 },
+                 {
+                     "name":  "05 - B1 follow returned nextLink",
+                     "event":  [
+                                   {
+                                       "listen":  "prerequest",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "const path=pm.collectionVariables.get(\u0027followPath\u0027);if(!/^\\/api\\/movies\\?/.test(path || \u0027\u0027) || path.includes(\u0027://\u0027)){pm.execution.skipRequest();throw Error(\u0027Unsafe nextLink\u0027);}"
+                                                               ]
+                                                  }
+                                   },
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "const p=pm.response.json();",
+                                                                   "pm.test(\u0027200 paginated JSON contract\u0027,()=\u003e{pm.response.to.have.status(200);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/json\u0027);pm.expect(p).to.have.all.keys(\u0027items\u0027,\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027,\u0027nextLink\u0027);pm.expect(p.items).to.be.an(\u0027array\u0027);p.items.forEach(movie);[\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027].forEach(k=\u003epm.expect(Number.isInteger(p[k])).to.eql(true));pm.expect(p.totalCount).to.be.at.least(0);pm.expect(p.items.length).to.eql(Math.min(p.limit,Math.max(0,p.totalCount-p.skip)));pm.expect(p.items.map(m=\u003em.id)).to.eql([...new Set(p.items.map(m=\u003em.id))].sort((a,b)=\u003ea-b));});",
+                                                                   "pm.test(\u0027Second page advances without duplicate\u0027,()=\u003e{pm.expect(p.skip).to.eql(1);pm.expect(p.limit).to.eql(1);p.items.forEach(m=\u003epm.expect(m.id).to.be.above(Number(pm.collectionVariables.get(\u0027firstPageId\u0027))));});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}{{followPath}}"
+                                 }
+                 },
+                 {
+                     "name":  "06 - B1 out of range",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "const p=pm.response.json();",
+                                                                   "pm.test(\u0027200 paginated JSON contract\u0027,()=\u003e{pm.response.to.have.status(200);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/json\u0027);pm.expect(p).to.have.all.keys(\u0027items\u0027,\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027,\u0027nextLink\u0027);pm.expect(p.items).to.be.an(\u0027array\u0027);p.items.forEach(movie);[\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027].forEach(k=\u003epm.expect(Number.isInteger(p[k])).to.eql(true));pm.expect(p.totalCount).to.be.at.least(0);pm.expect(p.items.length).to.eql(Math.min(p.limit,Math.max(0,p.totalCount-p.skip)));pm.expect(p.items.map(m=\u003em.id)).to.eql([...new Set(p.items.map(m=\u003em.id))].sort((a,b)=\u003ea-b));});pm.test(\u0027Empty terminal page\u0027,()=\u003e{pm.expect(p.skip).to.eql(2147483647);pm.expect(p.limit).to.eql(100);pm.expect(p.items).to.eql([]);pm.expect(p.nextLink).to.eql(null);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=2147483647\u0026limit=100"
+                                 }
+                 },
+                 {
+                     "name":  "B1 - skip default",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "const p=pm.response.json();",
+                                                                   "pm.test(\u0027200 paginated JSON contract\u0027,()=\u003e{pm.response.to.have.status(200);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/json\u0027);pm.expect(p).to.have.all.keys(\u0027items\u0027,\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027,\u0027nextLink\u0027);pm.expect(p.items).to.be.an(\u0027array\u0027);p.items.forEach(movie);[\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027].forEach(k=\u003epm.expect(Number.isInteger(p[k])).to.eql(true));pm.expect(p.totalCount).to.be.at.least(0);pm.expect(p.items.length).to.eql(Math.min(p.limit,Math.max(0,p.totalCount-p.skip)));pm.expect(p.items.map(m=\u003em.id)).to.eql([...new Set(p.items.map(m=\u003em.id))].sort((a,b)=\u003ea-b));});pm.test(\u0027Defaults\u0027,()=\u003e{pm.expect(p.skip).to.eql(0);pm.expect(p.limit).to.eql(1);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=1"
+                                 }
+                 },
+                 {
+                     "name":  "B1 - limit default",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "const p=pm.response.json();",
+                                                                   "pm.test(\u0027200 paginated JSON contract\u0027,()=\u003e{pm.response.to.have.status(200);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/json\u0027);pm.expect(p).to.have.all.keys(\u0027items\u0027,\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027,\u0027nextLink\u0027);pm.expect(p.items).to.be.an(\u0027array\u0027);p.items.forEach(movie);[\u0027totalCount\u0027,\u0027skip\u0027,\u0027limit\u0027].forEach(k=\u003epm.expect(Number.isInteger(p[k])).to.eql(true));pm.expect(p.totalCount).to.be.at.least(0);pm.expect(p.items.length).to.eql(Math.min(p.limit,Math.max(0,p.totalCount-p.skip)));pm.expect(p.items.map(m=\u003em.id)).to.eql([...new Set(p.items.map(m=\u003em.id))].sort((a,b)=\u003ea-b));});pm.test(\u0027Defaults\u0027,()=\u003e{pm.expect(p.skip).to.eql(0);pm.expect(p.limit).to.eql(20);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=0"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=-1",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=-1"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=abc",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=abc"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=1.5",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=1.5"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=2147483648",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=2147483648"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip="
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=%20",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=%20"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - skip=0\u0026skip=1",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for skip\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027skip\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?skip=0\u0026skip=1"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=0",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=0"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=-1",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=-1"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=101",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=101"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=abc",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=abc"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=1.5",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=1.5"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=2147483648",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=2147483648"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit="
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=%20",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=%20"
+                                 }
+                 },
+                 {
+                     "name":  "B1 invalid - limit=1\u0026limit=2",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027400 validation problem for limit\u0027,()=\u003e{pm.response.to.have.status(400);pm.expect(pm.response.headers.get(\u0027Content-Type\u0027)).to.include(\u0027application/problem+json\u0027);const p=pm.response.json();pm.expect(p.status).to.eql(400);pm.expect(p.errors).to.be.an(\u0027object\u0027);const key=Object.keys(p.errors).find(k=\u003ek.toLowerCase()===\u0027limit\u0027);pm.expect(key).to.be.a(\u0027string\u0027);pm.expect(p.errors[key]).to.be.an(\u0027array\u0027).and.not.empty;});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies?limit=1\u0026limit=2"
+                                 }
+                 },
+                 {
+                     "name":  "07 - PUT owned movie",
+                     "event":  [
+                                   {
+                                       "listen":  "prerequest",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "const marker = pm.collectionVariables.get(\u0027ownerMarker\u0027);",
+                                                                   "const id = pm.collectionVariables.get(\u0027movieId\u0027);",
+                                                                   "if (!/^FilmHub-QA1:[0-9a-f-]{36}$/.test(marker || \u0027\u0027) || !/^[1-9][0-9]*$/.test(String(id || \u0027\u0027))) { pm.execution.skipRequest(); throw new Error(\u0027No trusted QA1 state; run the entire collection.\u0027); }",
+                                                                   "pm.sendRequest(pm.collectionVariables.get(\u0027baseUrl\u0027) + \u0027/api/movies/\u0027 + id, (err,res) =\u003e {",
+                                                                   " if (err || res.code !== 200 || res.json().description !== marker || ![\u0027FilmHub QA1 \u0027+marker.slice(12), \u0027FilmHub QA1 updated \u0027+marker.slice(12)].includes(res.json().title)) {",
+                                                                   "  pm.execution.skipRequest(); throw new Error(\u0027Ownership check failed; mutation blocked.\u0027);",
+                                                                   " }",
+                                                                   "});"
+                                                               ]
+                                                  }
+                                   },
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027204 empty body\u0027,()=\u003e{pm.response.to.have.status(204);pm.expect(pm.response.text()).to.eql(\u0027\u0027);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "PUT",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies/{{movieId}}",
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{{updateBody}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              }
+                                 }
+                 },
+                 {
+                     "name":  "08 - GET updated movie",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "function movie(m) {",
+                                                                   " pm.expect(m).to.have.all.keys(\u0027id\u0027,\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027,\u0027genres\u0027);",
+                                                                   " pm.expect(m.id).to.be.a(\u0027number\u0027); pm.expect(Number.isInteger(m.id) \u0026\u0026 m.id \u003e 0).to.eql(true);",
+                                                                   " pm.expect(m.title).to.be.a(\u0027string\u0027).and.not.empty; pm.expect(m.description).to.be.a(\u0027string\u0027).and.not.empty;",
+                                                                   " pm.expect(m.releaseYear).to.be.within(1888,2100);",
+                                                                   " pm.expect(m.posterUrl === null || typeof m.posterUrl === \u0027string\u0027).to.eql(true);",
+                                                                   " pm.expect(m.genres).to.be.an(\u0027array\u0027).and.not.empty;",
+                                                                   " m.genres.forEach(g =\u003e {pm.expect(g).to.have.all.keys(\u0027id\u0027,\u0027name\u0027); pm.expect(g.id).to.be.above(0); pm.expect(g.name).to.be.a(\u0027string\u0027);});",
+                                                                   "}",
+                                                                   "",
+                                                                   "pm.test(\u0027200 and exact persisted DTO\u0027,()=\u003e{pm.response.to.have.status(200);const m=pm.response.json();movie(m);const b=JSON.parse(pm.collectionVariables.get(\u0027updateBody\u0027));pm.expect(m.id).to.eql(Number(pm.collectionVariables.get(\u0027movieId\u0027)));[\u0027title\u0027,\u0027description\u0027,\u0027releaseYear\u0027,\u0027posterUrl\u0027].forEach(k=\u003epm.expect(m[k]).to.eql(b[k]));pm.expect(m.genres.map(g=\u003eg.id)).to.eql(b.genreIds);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies/{{movieId}}"
+                                 }
+                 },
+                 {
+                     "name":  "09 - DELETE owned movie",
+                     "event":  [
+                                   {
+                                       "listen":  "prerequest",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "const marker = pm.collectionVariables.get(\u0027ownerMarker\u0027);",
+                                                                   "const id = pm.collectionVariables.get(\u0027movieId\u0027);",
+                                                                   "if (!/^FilmHub-QA1:[0-9a-f-]{36}$/.test(marker || \u0027\u0027) || !/^[1-9][0-9]*$/.test(String(id || \u0027\u0027))) { pm.execution.skipRequest(); throw new Error(\u0027No trusted QA1 state; run the entire collection.\u0027); }",
+                                                                   "pm.sendRequest(pm.collectionVariables.get(\u0027baseUrl\u0027) + \u0027/api/movies/\u0027 + id, (err,res) =\u003e {",
+                                                                   " if (err || res.code !== 200 || res.json().description !== marker || ![\u0027FilmHub QA1 \u0027+marker.slice(12), \u0027FilmHub QA1 updated \u0027+marker.slice(12)].includes(res.json().title)) {",
+                                                                   "  pm.execution.skipRequest(); throw new Error(\u0027Ownership check failed; mutation blocked.\u0027);",
+                                                                   " }",
+                                                                   "});"
+                                                               ]
+                                                  }
+                                   },
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027204 empty body\u0027,()=\u003e{pm.response.to.have.status(204);pm.expect(pm.response.text()).to.eql(\u0027\u0027);});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies/{{movieId}}"
+                                 }
+                 },
+                 {
+                     "name":  "10 - GET deleted movie returns 404",
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\u0027404 after deletion\u0027,()=\u003epm.response.to.have.status(404));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Accept",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/movies/{{movieId}}"
+                                 }
+                 }
+             ],
+    "event":  [
+                  {
+                      "script":  {
+                                     "exec":  [
+                                                  "pm.collectionVariables.toObject \u0026\u0026 Object.entries(pm.collectionVariables.toObject()).forEach(([k,v]) =\u003e pm.variables.set(k,v));"
+                                              ],
+                                     "type":  "text/javascript"
+                                 },
+                      "listen":  "prerequest"
+                  }
+              ]
+}

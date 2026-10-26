@@ -6,22 +6,22 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="mb-1">Статистика фільмів</h1>
-        <p class="text-muted mb-0">Огляд колекції FilmHub за роками випуску та жанрами.</p>
+        <h1 class="mb-1">Movie statistics</h1>
+        <p class="text-muted mb-0">An overview of the FilmHub collection by release year and genre.</p>
     </div>
-    <a asp-controller="Movies" asp-action="Index" class="btn btn-outline-primary">До фільмів</a>
+    <a asp-controller="Movies" asp-action="Index" class="btn btn-outline-primary">Back to movies</a>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-sm-6">
         <div class="card h-100 border-0 bg-light"><div class="card-body">
-            <div class="text-muted">Усього фільмів</div>
+            <div class="text-muted">Total movies</div>
             <div class="fs-2 fw-semibold">@Model.TotalMovies</div>
         </div></div>
     </div>
     <div class="col-sm-6">
         <div class="card h-100 border-0 bg-light"><div class="card-body">
-            <div class="text-muted">Жанрів у колекції</div>
+            <div class="text-muted">Genres in the collection</div>
             <div class="fs-2 fw-semibold">@Model.ByGenre.Count(item => item.Count > 0)</div>
         </div></div>
     </div>
@@ -29,37 +29,37 @@
 
 @if (Model.TotalMovies == 0)
 {
-    <div class="alert alert-info" role="status">У колекції ще немає фільмів. Додайте фільм, щоб побачити графіки.</div>
+    <div class="alert alert-info" role="status">There are no movies in the collection yet. Add a movie to see the charts.</div>
 }
 else
 {
     <div id="chart-error" class="alert alert-warning d-none" role="alert">
-        Не вдалося завантажити графіки. Перевірте інтернет-з’єднання та оновіть сторінку. Дані доступні в таблицях нижче.
+        The charts could not be loaded. Check your internet connection and refresh the page. The data is available in the tables below.
     </div>
-    <noscript><div class="alert alert-info">Увімкніть JavaScript для графіків. Дані доступні в таблицях нижче.</div></noscript>
+    <noscript><div class="alert alert-info">Enable JavaScript to view the charts. The data is available in the tables below.</div></noscript>
     <div class="row g-4">
         <section class="col-lg-7" aria-labelledby="years-heading">
             <div class="card h-100 shadow-sm"><div class="card-body">
-                <h2 id="years-heading" class="h5">Фільми за роками випуску</h2>
-                <p class="text-muted small">Кількість фільмів для кожного року в колекції.</p>
+                <h2 id="years-heading" class="h5">Movies by release year</h2>
+                <p class="text-muted small">The number of movies in the collection for each release year.</p>
                 <div class="position-relative" style="height: 360px;">
-                    <canvas id="release-years-chart" role="img" aria-label="Кількість фільмів за роками випуску. Точні дані в таблиці нижче."></canvas>
+                    <canvas id="release-years-chart" role="img" aria-label="Number of movies by release year. Exact values are available in the table below."></canvas>
                 </div>
             </div></div>
         </section>
         <section class="col-lg-5" aria-labelledby="genres-heading">
             <div class="card h-100 shadow-sm"><div class="card-body">
-                <h2 id="genres-heading" class="h5">Розподіл фільмів за жанрами</h2>
-                <p class="text-muted small">Фільм із кількома жанрами враховується в кожному. Сума може перевищувати кількість фільмів.</p>
+                <h2 id="genres-heading" class="h5">Movies by genre</h2>
+                <p class="text-muted small">Movies with multiple genres are counted in each genre. The total may exceed the number of movies.</p>
                 @if (Model.ByGenre.Any(item => item.Count > 0))
                 {
                     <div class="position-relative" style="height: 360px;">
-                        <canvas id="genres-chart" role="img" aria-label="Розподіл фільмів за жанрами. Точні дані в таблиці нижче."></canvas>
+                        <canvas id="genres-chart" role="img" aria-label="Movies by genre. Exact values are available in the table below."></canvas>
                     </div>
                 }
                 else
                 {
-                    <div class="alert alert-info mb-0">Фільмам ще не призначено жанри.</div>
+                    <div class="alert alert-info mb-0">No genres have been assigned to the movies yet.</div>
                 }
             </div></div>
         </section>
@@ -67,12 +67,12 @@ else
 }
 
 <details class="mt-4">
-    <summary class="fw-semibold">Переглянути дані таблицями</summary>
+    <summary class="fw-semibold">View data tables</summary>
     <div class="row g-4 mt-1">
         <div class="col-md-6"><div class="table-responsive">
             <table class="table table-striped table-sm">
-                <caption>Кількість фільмів за роками випуску</caption>
-                <thead><tr><th scope="col">Рік випуску</th><th scope="col">Кількість фільмів</th></tr></thead>
+                <caption>Number of movies by release year</caption>
+                <thead><tr><th scope="col">Release year</th><th scope="col">Number of movies</th></tr></thead>
                 <tbody>
                     @foreach (var item in Model.ByReleaseYear)
                     {
@@ -83,8 +83,8 @@ else
         </div></div>
         <div class="col-md-6"><div class="table-responsive">
             <table class="table table-striped table-sm">
-                <caption>Кількість фільмів за жанрами, включно з порожніми жанрами</caption>
-                <thead><tr><th scope="col">Жанр</th><th scope="col">Кількість фільмів</th></tr></thead>
+                <caption>Number of movies by genre, including genres with no movies</caption>
+                <thead><tr><th scope="col">Genre</th><th scope="col">Number of movies</th></tr></thead>
                 <tbody>
                     @foreach (var item in Model.ByGenre)
                     {
