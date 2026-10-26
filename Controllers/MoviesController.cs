@@ -192,14 +192,12 @@ public class MoviesController : Controller
 
     private async Task LoadGenres(IEnumerable<int>? selectedIds = null)
     {
-        var genres = await _context.Genres
+        var ids = selectedIds?.ToArray() ?? Array.Empty<int>();
+        ViewBag.SelectedGenres = await _context.Genres.AsNoTracking()
+            .Where(g => ids.Contains(g.Id))
             .OrderBy(g => g.Name)
             .ToListAsync();
-
-        ViewBag.AllGenres = genres;
-        ViewBag.SelectedGenreIds = selectedIds?.ToHashSet() ?? new HashSet<int>();
     }
-
     private void ValidatePoster(IFormFile? file)
     {
         if (file == null || file.Length == 0)

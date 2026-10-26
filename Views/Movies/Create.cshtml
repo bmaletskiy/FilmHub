@@ -51,26 +51,17 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Genres</label>
-
-                <div>
-                    @foreach (var genre in (List<FilmHub.Models.Genre>)ViewBag.AllGenres)
+                <label class="form-label" for="selectedGenreIds">Genres</label>
+                <select id="selectedGenreIds" name="selectedGenreIds"
+                        class="form-control js-genre-select" multiple
+                        data-search-url="@Url.Action("Search", "Genres")"
+                        aria-describedby="genre-help">
+                    @foreach (var genre in (List<FilmHub.Models.Genre>)ViewBag.SelectedGenres)
                     {
-                        var isChecked = ((HashSet<int>)ViewBag.SelectedGenreIds).Contains(genre.Id);
-                        <div class="form-check">
-                            <input type="checkbox"
-                                   class="form-check-input"
-                                   name="selectedGenreIds"
-                                   value="@genre.Id"
-                                   id="genre_@genre.Id"
-                                   checked="@isChecked" />
-                            <label class="form-check-label" for="genre_@genre.Id">
-                                @genre.Name
-                            </label>
-                        </div>
+                        <option value="@genre.Id" selected>@genre.Name</option>
                     }
-                </div>
-
+                </select>
+                <div id="genre-help" class="form-text">Введіть щонайменше 3 символи для пошуку жанрів.</div>
                 @if (ViewData.ModelState.TryGetValue("selectedGenreIds", out var genreState))
                 {
                     @foreach (var error in genreState.Errors)
@@ -95,7 +86,11 @@
 </div>
 
 @section Scripts {
+    <partial name="_GenreSelectScriptsPartial" />
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+}
+@section Styles {
+    <link rel="stylesheet" href="~/lib/select2/css/select2.min.css" />
 }

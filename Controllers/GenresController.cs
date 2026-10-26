@@ -13,6 +13,25 @@ public class GenresController : Controller
         _context = context;
     }
 
+    // Select2 AJAX: do not query the database before three characters.
+    [HttpGet]
+    public async Task<IActionResult> Search(string? term, CancellationToken cancellationToken)
+    {
+        term = term?.Trim();
+        if (string.IsNullOrEmpty(term) || term.Length < 3)
+            return Json(new { results = Array.Empty<object>() });
+
+        // Escape LIKE wildcards so the input is treated as a literal substring.
+        var escaped = term.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        var results = await _context.Genres.AsNoTracking()
+            .Where(g => EF.Functions.ILike(g.Name, "%" + escaped + "%", "\\"))
+            .OrderBy(g => g.Name).ThenBy(g => g.Id)
+            .Take(30)
+            .Select(g => new { id = g.Id, text = g.Name })
+            .ToListAsync(cancellationToken);
+
+        return Json(new { results });
+    }
     // GET: GENRES
     public async Task<IActionResult> Index()    
     {

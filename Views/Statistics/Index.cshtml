@@ -1,0 +1,110 @@
+@model FilmHub.Models.StatisticsViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Statistics";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="mb-1">Статистика фільмів</h1>
+        <p class="text-muted mb-0">Огляд колекції FilmHub за роками випуску та жанрами.</p>
+    </div>
+    <a asp-controller="Movies" asp-action="Index" class="btn btn-outline-primary">До фільмів</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6">
+        <div class="card h-100 border-0 bg-light"><div class="card-body">
+            <div class="text-muted">Усього фільмів</div>
+            <div class="fs-2 fw-semibold">@Model.TotalMovies</div>
+        </div></div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card h-100 border-0 bg-light"><div class="card-body">
+            <div class="text-muted">Жанрів у колекції</div>
+            <div class="fs-2 fw-semibold">@Model.ByGenre.Count(item => item.Count > 0)</div>
+        </div></div>
+    </div>
+</div>
+
+@if (Model.TotalMovies == 0)
+{
+    <div class="alert alert-info" role="status">У колекції ще немає фільмів. Додайте фільм, щоб побачити графіки.</div>
+}
+else
+{
+    <div id="chart-error" class="alert alert-warning d-none" role="alert">
+        Не вдалося завантажити графіки. Перевірте інтернет-з’єднання та оновіть сторінку. Дані доступні в таблицях нижче.
+    </div>
+    <noscript><div class="alert alert-info">Увімкніть JavaScript для графіків. Дані доступні в таблицях нижче.</div></noscript>
+    <div class="row g-4">
+        <section class="col-lg-7" aria-labelledby="years-heading">
+            <div class="card h-100 shadow-sm"><div class="card-body">
+                <h2 id="years-heading" class="h5">Фільми за роками випуску</h2>
+                <p class="text-muted small">Кількість фільмів для кожного року в колекції.</p>
+                <div class="position-relative" style="height: 360px;">
+                    <canvas id="release-years-chart" role="img" aria-label="Кількість фільмів за роками випуску. Точні дані в таблиці нижче."></canvas>
+                </div>
+            </div></div>
+        </section>
+        <section class="col-lg-5" aria-labelledby="genres-heading">
+            <div class="card h-100 shadow-sm"><div class="card-body">
+                <h2 id="genres-heading" class="h5">Розподіл фільмів за жанрами</h2>
+                <p class="text-muted small">Фільм із кількома жанрами враховується в кожному. Сума може перевищувати кількість фільмів.</p>
+                @if (Model.ByGenre.Any(item => item.Count > 0))
+                {
+                    <div class="position-relative" style="height: 360px;">
+                        <canvas id="genres-chart" role="img" aria-label="Розподіл фільмів за жанрами. Точні дані в таблиці нижче."></canvas>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-0">Фільмам ще не призначено жанри.</div>
+                }
+            </div></div>
+        </section>
+    </div>
+}
+
+<details class="mt-4">
+    <summary class="fw-semibold">Переглянути дані таблицями</summary>
+    <div class="row g-4 mt-1">
+        <div class="col-md-6"><div class="table-responsive">
+            <table class="table table-striped table-sm">
+                <caption>Кількість фільмів за роками випуску</caption>
+                <thead><tr><th scope="col">Рік випуску</th><th scope="col">Кількість фільмів</th></tr></thead>
+                <tbody>
+                    @foreach (var item in Model.ByReleaseYear)
+                    {
+                        <tr><th scope="row">@item.Year</th><td>@item.Count</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div></div>
+        <div class="col-md-6"><div class="table-responsive">
+            <table class="table table-striped table-sm">
+                <caption>Кількість фільмів за жанрами, включно з порожніми жанрами</caption>
+                <thead><tr><th scope="col">Жанр</th><th scope="col">Кількість фільмів</th></tr></thead>
+                <tbody>
+                    @foreach (var item in Model.ByGenre)
+                    {
+                        <tr><th scope="row">@item.Name</th><td>@item.Count</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div></div>
+    </div>
+</details>
+
+@section Scripts {
+    @if (Model.TotalMovies > 0)
+    {
+        <script id="statistics-data" type="application/json">@Html.Raw(JsonSerializer.Serialize(new
+        {
+            years = Model.ByReleaseYear,
+            genres = Model.ByGenre.Where(item => item.Count > 0)
+        }))</script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+        <script src="~/js/statistics.js" asp-append-version="true"></script>
+    }
+}
