@@ -83,14 +83,6 @@ docker run --rm --network "container:$dbContainer" -v "${PWD}:/src" -w /src -e "
 3. Відкрийте **Details**, щоб переглянути Landing Page.
 4. Перевірте **Edit** і **Delete**; відгуки — на сторінці фільму (відповідно до наявної версії застосунку).
 
-## 🐳 Корисні команди Docker
-
-| Дія | Команда |
-| --- | --- |
-| Перевірити стан контейнерів | `docker compose ps` |
-| Переглянути логи | `docker compose logs -f` |
-| Зупинити застосунок | `docker compose down` |
-| Запустити знову | `docker compose up -d` |
 
 Дані PostgreSQL та завантажені постери зберігаються в Docker volumes. **Не використовуйте `docker compose down -v`**, якщо хочете зберегти ці дані.
 
