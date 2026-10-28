@@ -1,3 +1,4 @@
+
 using Microsoft.EntityFrameworkCore;
 using FilmHub.Data;
 using FilmHub.Caching;
@@ -6,6 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// HTTP response compression
+builder.Services.AddResponseCompression();
+
 builder.Services.AddSingleton<MovieApiCache>();
 builder.Services.AddScoped<MovieCacheInvalidationInterceptor>();
 builder.Services.AddOutputCache(options =>
@@ -26,6 +31,9 @@ builder.Services.AddDbContext<AppDbContext>((services, options) =>
         .AddInterceptors(services.GetRequiredService<MovieCacheInvalidationInterceptor>()));
 
 var app = builder.Build();
+
+// Enable HTTP response compression
+app.UseResponseCompression();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -50,7 +58,6 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();
 
