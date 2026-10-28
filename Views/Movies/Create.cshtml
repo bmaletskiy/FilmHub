@@ -42,13 +42,39 @@
                       class="text-danger"></span>
             </div>
 
+            
             <div class="mb-3">
-                <label class="form-label">Poster</label>
-                <input type="file"
-                       name="posterFile"
-                       class="form-control"
-                       accept=".jpg,.jpeg,.png,.webp" />
+                <label for="posterFile" class="form-label">Poster</label>
+
+                <div id="posterDropZone"
+                     class="border border-2 border-dashed rounded p-4 text-center mb-3">
+                    <p>Drag and drop a poster here</p>
+                    <p class="text-muted">or select an image</p>
+
+                    <input type="file"
+                           id="posterFile"
+                           name="posterFile"
+                           class="form-control"
+                           accept=".jpg,.jpeg,.png,.webp" />
+                </div>
+
+                <img id="posterPreview"
+                     class="img-fluid rounded mb-2"
+                     style="max-height: 300px;"
+                     alt="Poster preview"
+                     hidden />
+
+                <div id="posterInfo" class="text-muted small mb-2"></div>
+                <div id="posterError" class="text-danger mb-2"></div>
+
+                <button type="button"
+                        id="removePoster"
+                        class="btn btn-outline-danger btn-sm"
+                        hidden>
+                    Remove Poster
+                </button>
             </div>
+
 
             <div class="mb-3">
                 <label class="form-label" for="selectedGenreIds">Genres</label>
@@ -85,12 +111,19 @@
     </div>
 </div>
 
+
 @section Scripts {
     <partial name="_GenreSelectScriptsPartial" />
+
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
+    <script src="~/js/poster-upload.js"
+            asp-append-version="true"></script>
 }
+
 @section Styles {
     <link rel="stylesheet" href="~/lib/select2/css/select2.min.css" />
 }
+
