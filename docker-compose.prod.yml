@@ -11,6 +11,7 @@ services:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=FilmHubDb;Username=postgres;Password=${DB_PASSWORD:?DB_PASSWORD is required}"
       Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}"
       Telegram__ChatId: "${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is required}"
+      TMDB_TOKEN: "${TMDB_TOKEN}"
     depends_on:
       db:
         condition: service_healthy
