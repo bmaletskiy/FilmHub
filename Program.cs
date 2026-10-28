@@ -1,12 +1,14 @@
-
+using FilmHub.Services;
 using Microsoft.EntityFrameworkCore;
 using FilmHub.Data;
 using FilmHub.Caching;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpClient<TelegramNotificationService>();
 
 // HTTP response compression
 builder.Services.AddResponseCompression();

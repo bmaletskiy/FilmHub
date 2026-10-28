@@ -1,3 +1,4 @@
+
 services:
   app:
     build:
@@ -8,6 +9,8 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=FilmHubDb;Username=postgres;Password=${DB_PASSWORD}
       - TMDB_TOKEN=${TMDB_TOKEN}
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
+      - Telegram__ChatId=${TELEGRAM_CHAT_ID}
     depends_on:
       - db
     volumes:

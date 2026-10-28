@@ -1,4 +1,4 @@
-
+using FilmHub.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -9,13 +9,16 @@ public class MoviesController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IWebHostEnvironment _environment;
+    private readonly TelegramNotificationService _telegram;
 
     public MoviesController(
-        AppDbContext context,
-        IWebHostEnvironment environment)
+    AppDbContext context,
+    IWebHostEnvironment environment,
+    TelegramNotificationService telegram)
     {
         _context = context;
         _environment = environment;
+        _telegram = telegram;
     }
 
     // GET: Movies
@@ -52,6 +55,7 @@ public class MoviesController : Controller
         return View();
     }
 
+
     // POST: Movies/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -80,12 +84,28 @@ public class MoviesController : Controller
             _context.Movies.Add(movie);
             await _context.SaveChangesAsync();
 
+            // B2: Telegram notification
+            try
+            {
+                await _telegram.SendNewMovieNotificationAsync(
+                    movie.Title,
+                    movie.ReleaseYear,
+                    string.Join(", ", genres.Select(g => g.Name)));
+            }
+            catch (Exception ex)
+            {
+                // Telegram error must not prevent movie creation.
+                Console.Error.WriteLine(
+                    $"Telegram notification failed: {ex.Message}");
+            }
+
             return RedirectToAction(nameof(Index));
         }
 
         await LoadGenres(selectedGenreIds);
         return View(movie);
     }
+
 
     // GET: Movies/Edit/5
     public async Task<IActionResult> Edit(int? id)
