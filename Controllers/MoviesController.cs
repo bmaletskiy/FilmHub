@@ -1,3 +1,4 @@
+
 using FilmHub.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -10,15 +11,18 @@ public class MoviesController : Controller
     private readonly AppDbContext _context;
     private readonly IWebHostEnvironment _environment;
     private readonly TelegramNotificationService _telegram;
+    private readonly CloudinaryStorageService _cloudinaryStorage;
 
     public MoviesController(
-    AppDbContext context,
-    IWebHostEnvironment environment,
-    TelegramNotificationService telegram)
+        AppDbContext context,
+        IWebHostEnvironment environment,
+        TelegramNotificationService telegram,
+        CloudinaryStorageService cloudinaryStorage)
     {
         _context = context;
         _environment = environment;
         _telegram = telegram;
+        _cloudinaryStorage = cloudinaryStorage;
     }
 
     // GET: Movies
@@ -55,7 +59,6 @@ public class MoviesController : Controller
         return View();
     }
 
-
     // POST: Movies/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -79,12 +82,14 @@ public class MoviesController : Controller
         {
             movie.Genres = genres;
 
-            movie.PosterUrl = await SavePoster(posterFile);
+            // C19: Upload poster to Cloudinary CDN.
+            movie.PosterUrl =
+                await _cloudinaryStorage.UploadPosterAsync(posterFile);
 
             _context.Movies.Add(movie);
             await _context.SaveChangesAsync();
 
-            // B2: Telegram notification
+            // B2: Telegram notification.
             try
             {
                 await _telegram.SendNewMovieNotificationAsync(
@@ -94,7 +99,7 @@ public class MoviesController : Controller
             }
             catch (Exception ex)
             {
-                // Telegram error must not prevent movie creation.
+                // Telegram errors must not prevent movie creation.
                 Console.Error.WriteLine(
                     $"Telegram notification failed: {ex.Message}");
             }
@@ -105,7 +110,6 @@ public class MoviesController : Controller
         await LoadGenres(selectedGenreIds);
         return View(movie);
     }
-
 
     // GET: Movies/Edit/5
     public async Task<IActionResult> Edit(int? id)
@@ -170,8 +174,12 @@ public class MoviesController : Controller
         foreach (var genre in genres)
             movie.Genres.Add(genre);
 
+        // C19: Replace poster using Cloudinary.
         if (posterFile != null && posterFile.Length > 0)
-            movie.PosterUrl = await SavePoster(posterFile);
+        {
+            movie.PosterUrl =
+                await _cloudinaryStorage.UploadPosterAsync(posterFile);
+        }
 
         await _context.SaveChangesAsync();
 
@@ -210,14 +218,18 @@ public class MoviesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task LoadGenres(IEnumerable<int>? selectedIds = null)
+    private async Task LoadGenres(
+        IEnumerable<int>? selectedIds = null)
     {
         var ids = selectedIds?.ToArray() ?? Array.Empty<int>();
-        ViewBag.SelectedGenres = await _context.Genres.AsNoTracking()
+
+        ViewBag.SelectedGenres = await _context.Genres
+            .AsNoTracking()
             .Where(g => ids.Contains(g.Id))
             .OrderBy(g => g.Name)
             .ToListAsync();
     }
+
     private void ValidatePoster(IFormFile? file)
     {
         if (file == null || file.Length == 0)
@@ -244,6 +256,8 @@ public class MoviesController : Controller
         }
     }
 
+    // Legacy local poster storage.
+    // Kept temporarily for compatibility with existing functionality.
     private async Task<string?> SavePoster(IFormFile? file)
     {
         if (file == null || file.Length == 0)

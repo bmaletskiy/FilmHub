@@ -11,6 +11,9 @@ services:
       - TMDB_TOKEN=${TMDB_TOKEN}
       - Telegram__BotToken=${TELEGRAM_BOT_TOKEN}
       - Telegram__ChatId=${TELEGRAM_CHAT_ID}
+      - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - Cloudinary__ApiKey=${CLOUDINARY_API_KEY}
+      - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET}
     depends_on:
       - db
     volumes:

@@ -12,6 +12,9 @@ services:
       Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}"
       Telegram__ChatId: "${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is required}"
       TMDB_TOKEN: "${TMDB_TOKEN}"
+      Cloudinary__CloudName: "${CLOUDINARY_CLOUD_NAME:?CLOUDINARY_CLOUD_NAME is required}"
+      Cloudinary__ApiKey: "${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY is required}"
+      Cloudinary__ApiSecret: "${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET is required}"
     depends_on:
       db:
         condition: service_healthy
