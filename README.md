@@ -6,7 +6,7 @@ The application allows users to manage movies and genres, view movie details, wr
 
 ## 🌐 Live Demo
 
-**Live application:** [http://13.60.182.225](http://filmhub-bm.duckdns.org)
+**Live application:** [filmhub-bm.duckdns.org](http://filmhub-bm.duckdns.org)
 
 > **Note:** The current demo uses HTTP and does not yet have user authentication. Movie and genre management operations are publicly accessible. Use test data only and do not submit sensitive information.
 
