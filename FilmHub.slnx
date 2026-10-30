@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="FilmHub.csproj" />
   <Project Path="tests/FilmHub.Api.Tests/FilmHub.Api.Tests.csproj" />
+  <Project Path="tests/FilmHub.E2E.Tests/FilmHub.E2E.Tests.csproj" />
 </Solution>
