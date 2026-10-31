@@ -1,0 +1,182 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FilmHub Notes</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+
+        .block {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            background: #fff;
+        }
+
+        .handle {
+            cursor: grab;
+            color: #aaa;
+            user-select: none;
+            padding-top: 4px;
+        }
+
+        .text {
+            flex: 1;
+            outline: none;
+            padding: 4px;
+            min-height: 1.4em;
+        }
+
+        .h1 .text {
+            font-size: 2em;
+            font-weight: 700;
+        }
+
+        .h2 .text {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .li .text::before {
+            content: "• ";
+        }
+
+        .ghost {
+            opacity: 0.4;
+            background: #e8f0fe;
+        }
+
+        #md {
+            white-space: pre-wrap;
+            background: #f5f5f5;
+            padding: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Нотатки</h1>
+    <div id="editor"></div>
+    <button id="mdBtn">Показати Markdown</button>
+<pre id="md"></pre>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+    <script>
+const KEY = "filmhub-notes";
+const PREFIXES = [["## ", "h2"], ["# ", "h1"], ["- ", "li"]];
+const MD = { p: "", h1: "# ", h2: "## ", li: "- " };
+const editor = document.getElementById("editor");
+const mdBox = document.getElementById("md");
+
+function newBlock(type = "p", text = "") {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return { id, type, text };
+}
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch (e) {}
+  return [newBlock()];
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(blocks)); }
+
+let blocks = load();
+
+function render(focusId) {
+  editor.innerHTML = "";
+  for (const b of blocks) {
+    const row = document.createElement("div");
+    row.className = "block " + b.type;
+    row.dataset.id = b.id;
+    const handle = document.createElement("span");
+    handle.className = "handle";
+    handle.textContent = "⋮⋮";
+    const text = document.createElement("div");
+    text.className = "text";
+    text.contentEditable = "true";
+    text.textContent = b.text;
+    text.addEventListener("input", () => onInput(b, text));
+    text.addEventListener("keydown", e => onKey(e, b));
+    row.append(handle, text);
+    editor.append(row);
+  }
+  if (focusId) focusBlock(focusId);
+}
+
+function focusBlock(id) {
+  const el = editor.querySelector(`[data-id="${id}"] .text`);
+  if (!el) return;
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const sel = getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function onInput(b, el) {
+  // у contenteditable пробіл часто стає \u00A0, тому нормалізуємо
+  b.text = el.textContent.replace(/\u00A0/g, " ");
+  for (const [prefix, type] of PREFIXES) {
+    if (b.text.startsWith(prefix)) {
+      b.type = type;
+      b.text = b.text.slice(prefix.length);
+      save();
+      render(b.id);
+      return;
+    }
+  }
+  save();
+}
+
+function onKey(e, b) {
+  const i = blocks.indexOf(b);
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const next = newBlock(b.type === "li" ? "li" : "p");
+    blocks.splice(i + 1, 0, next);
+    save();
+    render(next.id);
+  } else if (e.key === "Backspace" && b.text === "") {
+    e.preventDefault();
+    if (b.type !== "p") {
+      b.type = "p";
+      save();
+      render(b.id);
+    } else if (blocks.length > 1) {
+      blocks.splice(i, 1);
+      save();
+      render(blocks[Math.max(0, i - 1)].id);
+    }
+  }
+}
+
+// F3: перетягування за ручкою ⋮⋮ з анімацією, порядок зберігається
+Sortable.create(editor, {
+  handle: ".handle",
+  animation: 150,
+  ghostClass: "ghost",
+  onEnd: () => {
+    const order = [...editor.children].map(el => el.dataset.id);
+    blocks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    save();
+  }
+});
+
+document.getElementById("mdBtn").onclick = () => {
+  mdBox.textContent = blocks.map(b => MD[b.type] + b.text).join("\n");
+  mdBox.style.display = mdBox.style.display === "block" ? "none" : "block";
+};
+
+render();
+    </script>
+</body>
+</html>
