@@ -8,8 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddHttpClient<TelegramNotificationService>();
-builder.Services.AddSingleton<CloudinaryStorageService>();
+builder.Services.AddHttpClient<ITelegramNotificationService, TelegramNotificationService>();
+builder.Services.AddSingleton<ICloudinaryStorageService, CloudinaryStorageService>();
 
 // HTTP response compression
 builder.Services.AddResponseCompression();

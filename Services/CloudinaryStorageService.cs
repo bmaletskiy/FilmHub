@@ -4,7 +4,7 @@ using CloudinaryDotNet.Actions;
 
 namespace FilmHub.Services;
 
-public class CloudinaryStorageService
+public class CloudinaryStorageService : ICloudinaryStorageService
 {
     private readonly Cloudinary _cloudinary;
 

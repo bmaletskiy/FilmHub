@@ -10,14 +10,14 @@ public class MoviesController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IWebHostEnvironment _environment;
-    private readonly TelegramNotificationService _telegram;
-    private readonly CloudinaryStorageService _cloudinaryStorage;
+    private readonly ITelegramNotificationService _telegram;
+    private readonly ICloudinaryStorageService _cloudinaryStorage;
 
     public MoviesController(
         AppDbContext context,
         IWebHostEnvironment environment,
-        TelegramNotificationService telegram,
-        CloudinaryStorageService cloudinaryStorage)
+        ITelegramNotificationService telegram,
+        ICloudinaryStorageService cloudinaryStorage)
     {
         _context = context;
         _environment = environment;

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 
 namespace FilmHub.Services;
 
-public class TelegramNotificationService
+public class TelegramNotificationService : ITelegramNotificationService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;

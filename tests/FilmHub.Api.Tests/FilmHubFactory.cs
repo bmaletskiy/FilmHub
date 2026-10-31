@@ -1,6 +1,8 @@
 using FilmHub.Data;
 using FilmHub.Caching;
 using FilmHub.Models;
+using FilmHub.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -31,6 +33,12 @@ public sealed class FilmHubFactory : WebApplicationFactory<Program>
             services.AddDbContext<AppDbContext>((provider, options) => options.UseSqlite(connection)
                 .AddInterceptors(provider.GetRequiredService<MovieCacheInvalidationInterceptor>(), Queries));
             services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(options => options.Filters.Add(Pause));
+
+            // Replace real Cloudinary/Telegram with no-op fakes so tests need no keys and never call out.
+            services.RemoveAll<ICloudinaryStorageService>();
+            services.RemoveAll<ITelegramNotificationService>();
+            services.AddSingleton<ICloudinaryStorageService, FakeCloudinary>();
+            services.AddSingleton<ITelegramNotificationService, FakeTelegram>();
         });
     }
 
@@ -38,7 +46,8 @@ public sealed class FilmHubFactory : WebApplicationFactory<Program>
     {
         var client = CreateClient(new WebApplicationFactoryClientOptions
         {
-            BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false
         });
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -49,10 +58,15 @@ public sealed class FilmHubFactory : WebApplicationFactory<Program>
         db.Genres.AddRange(drama, comedy);
         db.Movies.Add(new Movie
         {
-            Id = 1, Title = "Original", Description = "Original overview", ReleaseYear = 2020,
-            PosterUrl = "/images/original.jpg", Genres = [drama],
+            Id = 1,
+            Title = "Original",
+            Description = "Original overview",
+            ReleaseYear = 2020,
+            PosterUrl = "/images/original.jpg",
+            Genres = [drama],
             Reviews = [new Review { Author = "Tester", Text = "Review", Rating = 8 }]
         });
+
         db.SaveChanges();
         return client;
     }
@@ -67,5 +81,17 @@ public sealed class FilmHubFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
         if (disposing) connection.Dispose();
+    }
+
+    private sealed class FakeCloudinary : ICloudinaryStorageService
+    {
+        public Task<string?> UploadPosterAsync(IFormFile? file) =>
+            Task.FromResult<string?>("https://img.test/poster.jpg");
+    }
+
+    private sealed class FakeTelegram : ITelegramNotificationService
+    {
+        public Task SendNewMovieNotificationAsync(string title, int year, string genres) =>
+            Task.CompletedTask;
     }
 }

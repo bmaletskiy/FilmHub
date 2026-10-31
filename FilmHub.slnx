@@ -1,5 +1,8 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/FilmHub.Api.Tests/FilmHub.Api.Tests.csproj" />
+    <Project Path="tests/FilmHub.E2E.Tests/FilmHub.E2E.Tests.csproj" />
+    <Project Path="tests/FilmHub.Unit.Tests/FilmHub.Unit.Tests.csproj" />
+  </Folder>
   <Project Path="FilmHub.csproj" />
-  <Project Path="tests/FilmHub.Api.Tests/FilmHub.Api.Tests.csproj" />
-  <Project Path="tests/FilmHub.E2E.Tests/FilmHub.E2E.Tests.csproj" />
 </Solution>
