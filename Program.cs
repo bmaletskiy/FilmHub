@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient<ITelegramNotificationService, TelegramNotificationService>();
 builder.Services.AddSingleton<ICloudinaryStorageService, CloudinaryStorageService>();
+builder.Services.AddSingleton<MovieSearchService>();
 
 // HTTP response compression
 builder.Services.AddResponseCompression();

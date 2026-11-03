@@ -123,7 +123,6 @@ function focusBlock(id) {
 }
 
 function onInput(b, el) {
-  // у contenteditable пробіл часто стає \u00A0, тому нормалізуємо
   b.text = el.textContent.replace(/\u00A0/g, " ");
   for (const [prefix, type] of PREFIXES) {
     if (b.text.startsWith(prefix)) {
@@ -159,7 +158,6 @@ function onKey(e, b) {
   }
 }
 
-// F3: перетягування за ручкою ⋮⋮ з анімацією, порядок зберігається
 Sortable.create(editor, {
   handle: ".handle",
   animation: 150,

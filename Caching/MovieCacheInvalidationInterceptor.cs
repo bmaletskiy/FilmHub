@@ -1,11 +1,12 @@
 using FilmHub.Models;
+using FilmHub.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace FilmHub.Caching;
 
 // Scoped with AppDbContext: covers API, MVC and imports without duplicating write logic.
-public sealed class MovieCacheInvalidationInterceptor(MovieApiCache cache) : SaveChangesInterceptor
+public sealed class MovieCacheInvalidationInterceptor(MovieApiCache cache, MovieSearchService search) : SaveChangesInterceptor
 {
     private bool affectsMovieResponses;
 
@@ -32,7 +33,11 @@ public sealed class MovieCacheInvalidationInterceptor(MovieApiCache cache) : Sav
 
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
-        if (affectsMovieResponses && result > 0) cache.InvalidateAsync().AsTask().GetAwaiter().GetResult();
+        if (affectsMovieResponses && result > 0)
+        {
+            search.MarkDirty();
+            cache.InvalidateAsync().AsTask().GetAwaiter().GetResult();
+        }
         affectsMovieResponses = false;
         return result;
     }
@@ -40,7 +45,11 @@ public sealed class MovieCacheInvalidationInterceptor(MovieApiCache cache) : Sav
     public override async ValueTask<int> SavedChangesAsync(
         SaveChangesCompletedEventData eventData, int result, CancellationToken cancellationToken = default)
     {
-        if (affectsMovieResponses && result > 0) await cache.InvalidateAsync();
+        if (affectsMovieResponses && result > 0)
+        {
+            search.MarkDirty();
+            await cache.InvalidateAsync();
+        }
         affectsMovieResponses = false;
         return result;
     }

@@ -7,12 +7,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Globalization;
+using FilmHub.Services;
 
 namespace FilmHub.Controllers.Api;
 
 [ApiController]
 [Route("api/movies")]
-public sealed class MoviesApiController(AppDbContext context) : ControllerBase
+public sealed class MoviesApiController(AppDbContext context, MovieSearchService search) : ControllerBase
 {
     [HttpGet]
     [OutputCache(PolicyName = MovieApiCache.Policy)]
@@ -35,7 +36,7 @@ public sealed class MoviesApiController(AppDbContext context) : ControllerBase
             // Keep old clients and the original C5 JSON-array contract working.
             var all = await query.Include(m => m.Genres).OrderBy(m => m.Id).ToListAsync(cancellationToken);
             return Ok(all.Select(MovieResponse.FromMovie).ToArray());
-        }
+        }   
 
         var skip = page.Skip ?? 0;
         var limit = page.Limit ?? MoviePageQuery.DefaultLimit;
@@ -67,6 +68,29 @@ public sealed class MoviesApiController(AppDbContext context) : ControllerBase
         var movie = await context.Movies.AsNoTracking().Include(m => m.Genres)
             .SingleOrDefaultAsync(m => m.Id == id, cancellationToken);
         return movie is null ? NotFound() : Ok(MovieResponse.FromMovie(movie));
+    }
+
+    // GET api/movies/search?q=avengers&limit=20 — full-text search (Lucene.NET), most relevant first.
+    [HttpGet("search")]
+    [ProducesResponseType<MovieResponse[]>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Search(
+        [FromQuery] string? q, [FromQuery] int limit = 20, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            ModelState.AddModelError("q", "Specify a non-empty search query.");
+        if (limit is < 1 or > 100)
+            ModelState.AddModelError("limit", "Limit must be between 1 and 100.");
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var ids = await search.SearchAsync(q!, limit);
+        if (ids.Count == 0) return Ok(Array.Empty<MovieResponse>());
+
+        var movies = await context.Movies.AsNoTracking().Include(m => m.Genres)
+            .Where(m => ids.Contains(m.Id)).ToListAsync(cancellationToken);
+        // Keep Lucene's relevance order: the database returns rows in arbitrary order.
+        var byId = movies.ToDictionary(m => m.Id);
+        return Ok(ids.Where(byId.ContainsKey).Select(id => MovieResponse.FromMovie(byId[id])).ToArray());
     }
 
     [HttpPost]

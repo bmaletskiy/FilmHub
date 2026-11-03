@@ -1,0 +1,94 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FilmHub Search</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 1.1em;
+            box-sizing: border-box;
+        }
+
+        .item {
+            display: flex;
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+            .item img {
+                width: 60px;
+                height: 90px;
+                object-fit: cover;
+                background: #eee;
+            }
+
+        .meta {
+            color: #666;
+            font-size: .9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Пошук фільмів</h1>
+    <input id="q" placeholder="Назва, жанр або слово з опису" autofocus>
+    <div id="status" class="meta"></div>
+    <div id="results"></div>
+
+    <script>
+const input = document.getElementById("q");
+const results = document.getElementById("results");
+const status = document.getElementById("status");
+let timer;
+let requestId = 0;
+
+input.addEventListener("input", () => {
+  clearTimeout(timer);
+  timer = setTimeout(search, 300); // не шлемо запит на кожну літеру
+});
+
+async function search() {
+  const id = ++requestId;
+  const q = input.value.trim();
+  results.innerHTML = "";
+  if (!q) { status.textContent = ""; return; }
+
+  const res = await fetch("/api/movies/search?q=" + encodeURIComponent(q));
+  if (id !== requestId) return; // прийшла застаріла відповідь
+  if (!res.ok) { status.textContent = "Помилка " + res.status; return; }
+
+  const movies = await res.json();
+  status.textContent = "Знайдено: " + movies.length;
+  for (const m of movies) {
+    const row = document.createElement("div");
+    row.className = "item";
+    const img = document.createElement("img");
+    img.src = m.posterUrl || "";
+    const info = document.createElement("div");
+    const title = document.createElement("a");
+    title.href = "/Movies/Details/" + m.id;
+    title.textContent = `${m.title} (${m.releaseYear})`;
+    title.style.fontWeight = "bold";
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = m.genres.map(g => g.name).join(", ");
+    info.append(title, meta);
+    const imgLink = document.createElement("a");
+    imgLink.href = "/Movies/Details/" + m.id;
+    imgLink.append(img);
+    row.append(imgLink, info);
+    results.append(row);
+  }
+}
+    </script>
+</body>
+</html>
