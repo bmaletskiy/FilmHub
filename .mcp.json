@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "filmhub": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [ "D:\\.NET\\projects\\FilmHub\\tools\\FilmHub.Mcp\\bin\\Debug\\net10.0\\FilmHub.Mcp.dll" ],
+      "env": { "FILMHUB_URL": "http://localhost:8081/" }
+    }
+  }
+}
