@@ -58,10 +58,17 @@
             padding: 12px;
             display: none;
         }
+
+        #sync {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
     <h1>Нотатки</h1>
+    <div id="sync">Підключення…</div>
     <div id="editor"></div>
     <button id="mdBtn">Показати Markdown</button>
 <pre id="md"></pre>
@@ -69,112 +76,209 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
     <script>
 const KEY = "filmhub-notes";
+const API = "/api/notes";
+const TYPES = ["p", "h1", "h2", "li"];
 const PREFIXES = [["## ", "h2"], ["# ", "h1"], ["- ", "li"]];
 const MD = { p: "", h1: "# ", h2: "## ", li: "- " };
 const editor = document.getElementById("editor");
 const mdBox = document.getElementById("md");
+const syncBox = document.getElementById("sync");
+
+//C13
+const clientId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+let rev = -1;          // остання версія документа на сервері, яку ми знаємо
+let dirty = false;     // є локальні зміни, ще не відправлені на сервер
+let version = 0;       // лічильник локальних змін
+let pushing = false;   // іде відправка на сервер
+let dragging = false;  // іде перетягування блока
+let pushTimer;
+
+function setStatus(text) { syncBox.textContent = text; }
 
 function newBlock(type = "p", text = "") {
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  return { id, type, text };
+          const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+          return { id, type, text };
 }
+
+function clean(arr) {
+          if (!Array.isArray(arr)) return [];
+          return arr
+            .filter(b => b && typeof b.id === "string")
+            .map(b => ({ id: b.id, type: TYPES.includes(b.type) ? b.type : "p", text: String(b.text ?? "") }));
+}
+
 function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY));
-    if (Array.isArray(saved) && saved.length) return saved;
-  } catch (e) {}
-  return [newBlock()];
+          try {
+            const saved = clean(JSON.parse(localStorage.getItem(KEY)));
+            if (saved.length) return saved;
+          } catch (e) {}
+          return [newBlock()];
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(blocks)); }
+
+function save() {
+          localStorage.setItem(KEY, JSON.stringify(blocks));
+          dirty = true;
+          version++;
+          setStatus("Збереження…");
+          clearTimeout(pushTimer);
+          pushTimer = setTimeout(push, 300);
+}
+
+async function push() {
+          if (pushing) { pushTimer = setTimeout(push, 300); return; }
+          pushing = true;
+          const sent = version;
+          try {
+            const res = await fetch(API, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ blocks, clientId })
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            const data = await res.json();
+            rev = data.revision;
+            if (sent === version) {
+              dirty = false;
+              setStatus("Синхронізовано");
+            }
+          } catch (e) {
+            setStatus("Немає зв'язку з сервером, зміни збережено локально");
+            pushTimer = setTimeout(push, 3000);
+          } finally {
+            pushing = false;
+          }
+}
+
+async function poll() {
+          if (!dirty && !pushing && !dragging) {
+            try {
+              const res = await fetch(API + "?since=" + rev, { cache: "no-store" });
+              if (res.status === 200) applyRemote(await res.json());
+              else if (res.status === 204) setStatus("Синхронізовано");
+            } catch (e) {
+              setStatus("Немає зв'язку з сервером");
+            }
+          }
+          setTimeout(poll, 1000);
+}
+
+function applyRemote(data) {
+     
+          if (dirty || pushing || dragging) return;
+          rev = data.revision;
+          if (data.clientId === clientId) return; 
+
+          const incoming = clean(data.blocks);
+          if (incoming.length === 0) { save(); return; } 
+
+          const active = document.activeElement && document.activeElement.closest
+            ? document.activeElement.closest(".block") : null;
+          const focusId = active ? active.dataset.id : null;
+          const offset = focusId ? getSelection().anchorOffset : 0;
+
+          blocks = incoming;
+          localStorage.setItem(KEY, JSON.stringify(blocks)); 
+          render(focusId && blocks.some(b => b.id === focusId) ? focusId : null, offset);
+          setStatus("Оновлено з іншого пристрою");
+}
 
 let blocks = load();
 
-function render(focusId) {
-  editor.innerHTML = "";
-  for (const b of blocks) {
-    const row = document.createElement("div");
-    row.className = "block " + b.type;
-    row.dataset.id = b.id;
-    const handle = document.createElement("span");
-    handle.className = "handle";
-    handle.textContent = "⋮⋮";
-    const text = document.createElement("div");
-    text.className = "text";
-    text.contentEditable = "true";
-    text.textContent = b.text;
-    text.addEventListener("input", () => onInput(b, text));
-    text.addEventListener("keydown", e => onKey(e, b));
-    row.append(handle, text);
-    editor.append(row);
-  }
-  if (focusId) focusBlock(focusId);
+function render(focusId, offset) {
+          editor.innerHTML = "";
+          for (const b of blocks) {
+            const row = document.createElement("div");
+            row.className = "block " + b.type;
+            row.dataset.id = b.id;
+            const handle = document.createElement("span");
+            handle.className = "handle";
+            handle.textContent = "⋮⋮";
+            const text = document.createElement("div");
+            text.className = "text";
+            text.contentEditable = "true";
+            text.textContent = b.text;
+            text.addEventListener("input", () => onInput(b, text));
+            text.addEventListener("keydown", e => onKey(e, b));
+            row.append(handle, text);
+            editor.append(row);
+          }
+          if (focusId) focusBlock(focusId, offset);
 }
 
-function focusBlock(id) {
-  const el = editor.querySelector(`[data-id="${id}"] .text`);
-  if (!el) return;
-  el.focus();
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  range.collapse(false);
-  const sel = getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
+function focusBlock(id, offset) {
+          const el = editor.querySelector(`[data-id="${id}"] .text`);
+          if (!el) return;
+          el.focus();
+          const range = document.createRange();
+          const node = el.firstChild;
+          if (offset !== undefined && node) {
+            range.setStart(node, Math.min(offset, node.length));
+            range.collapse(true);
+          } else {
+            range.selectNodeContents(el);
+            range.collapse(false);
+          }
+          const sel = getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
 }
 
 function onInput(b, el) {
-  b.text = el.textContent.replace(/\u00A0/g, " ");
-  for (const [prefix, type] of PREFIXES) {
-    if (b.text.startsWith(prefix)) {
-      b.type = type;
-      b.text = b.text.slice(prefix.length);
-      save();
-      render(b.id);
-      return;
-    }
-  }
-  save();
+          b.text = el.textContent.replace(/ /g, " ");
+          for (const [prefix, type] of PREFIXES) {
+            if (b.text.startsWith(prefix)) {
+              b.type = type;
+              b.text = b.text.slice(prefix.length);
+              save();
+              render(b.id);
+              return;
+            }
+          }
+          save();
 }
 
 function onKey(e, b) {
-  const i = blocks.indexOf(b);
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const next = newBlock(b.type === "li" ? "li" : "p");
-    blocks.splice(i + 1, 0, next);
-    save();
-    render(next.id);
-  } else if (e.key === "Backspace" && b.text === "") {
-    e.preventDefault();
-    if (b.type !== "p") {
-      b.type = "p";
-      save();
-      render(b.id);
-    } else if (blocks.length > 1) {
-      blocks.splice(i, 1);
-      save();
-      render(blocks[Math.max(0, i - 1)].id);
-    }
-  }
+          const i = blocks.indexOf(b);
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const next = newBlock(b.type === "li" ? "li" : "p");
+            blocks.splice(i + 1, 0, next);
+            save();
+            render(next.id);
+          } else if (e.key === "Backspace" && b.text === "") {
+            e.preventDefault();
+            if (b.type !== "p") {
+              b.type = "p";
+              save();
+              render(b.id);
+            } else if (blocks.length > 1) {
+              blocks.splice(i, 1);
+              save();
+              render(blocks[Math.max(0, i - 1)].id);
+            }
+          }
 }
 
 Sortable.create(editor, {
-  handle: ".handle",
-  animation: 150,
-  ghostClass: "ghost",
-  onEnd: () => {
-    const order = [...editor.children].map(el => el.dataset.id);
-    blocks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-    save();
-  }
+          handle: ".handle",
+          animation: 150,
+          ghostClass: "ghost",
+          onStart: () => { dragging = true; },
+          onEnd: () => {
+            dragging = false;
+            const order = [...editor.children].map(el => el.dataset.id);
+            blocks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+            save();
+          }
 });
 
 document.getElementById("mdBtn").onclick = () => {
-  mdBox.textContent = blocks.map(b => MD[b.type] + b.text).join("\n");
-  mdBox.style.display = mdBox.style.display === "block" ? "none" : "block";
+          mdBox.textContent = blocks.map(b => MD[b.type] + b.text).join("\n");
+          mdBox.style.display = mdBox.style.display === "block" ? "none" : "block";
 };
 
 render();
+poll();
     </script>
 </body>
 </html>
